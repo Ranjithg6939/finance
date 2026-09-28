@@ -8,6 +8,7 @@ import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
+import { useAuth } from '../../context/AuthContext';
 import {
   Receipt,
   Search,
@@ -16,11 +17,15 @@ import {
   Calendar,
   Printer,
   FileCheck,
+  UserCheck,
 } from 'lucide-react';
 
 export default function Payments() {
   const navigate = useNavigate();
   const { showToast } = useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const prefix = isAdmin ? '/admin' : '/staff';
 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +143,7 @@ export default function Payments() {
                   <th className="px-4 py-3">Principal</th>
                   <th className="px-4 py-3">Interest</th>
                   <th className="px-4 py-3">Method</th>
+                  {isAdmin && <th className="px-4 py-3">Collector</th>}
                   <th className="px-4 py-3 text-center">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -149,15 +155,15 @@ export default function Payments() {
                       {p.paymentId}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-900">
-                      <div>{p.customer?.fullName || '—'}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{p.customer?.customerId}</div>
+                      <div>{p.customer?.fullName || p.customerName || '—'}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{p.customer?.customerId || p.customerId}</div>
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-700">
                       <button
-                        onClick={() => navigate(`/loans/${p.loan?._id || p.loan}`)}
+                        onClick={() => navigate(`${prefix}/loans/${p.loan?._id || p.loan}`)}
                         className="hover:text-emerald-600 hover:underline"
                       >
-                        {p.loan?.loanId || 'Loan'}
+                        {p.loan?.loanId || p.loanId || 'Loan'}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
@@ -175,6 +181,14 @@ export default function Payments() {
                     <td className="px-4 py-3 capitalize text-slate-700">
                       {p.paymentMethod.replace('_', ' ')}
                     </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
+                          <UserCheck className="w-3.5 h-3.5 text-blue-500" />
+                          {p.collectorName || p.collectedBy?.name || 'Staff'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-center">
                       <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 capitalize">
                         {p.status}

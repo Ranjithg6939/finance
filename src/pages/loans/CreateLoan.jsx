@@ -6,6 +6,8 @@ import { useApp } from '../../context/AppContext';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import LoanCalculation from '../../components/loans/LoanCalculation';
+import { useAuth } from '../../context/AuthContext';
+import { staffService } from '../../services/staffService';
 import { Search, UserCheck, Calculator, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import {
   filterAmount,
@@ -19,11 +21,26 @@ export default function CreateLoan() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const prefix = isAdmin ? '/admin' : '/staff';
 
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      staffService
+        .getAll({ status: 'active' })
+        .then((res) => {
+          setStaffList(res.data || []);
+        })
+        .catch(() => {});
+    }
+  }, [isAdmin]);
 
   // Loan parameters
   const [formData, setFormData] = useState({
@@ -36,6 +53,7 @@ export default function CreateLoan() {
     paymentFrequency: 'monthly',
     startDate: new Date().toISOString().split('T')[0],
     firstDueDate: '',
+    assignedStaff: '',
     notes: '',
   });
 
@@ -203,11 +221,12 @@ export default function CreateLoan() {
         paymentFrequency: formData.paymentFrequency,
         startDate: formData.startDate,
         firstDueDate: formData.firstDueDate,
+        assignedStaff: formData.assignedStaff || undefined,
         notes: formData.notes,
       });
 
-      showToast('Loan approved and disbursed successfully!', 'success');
-      navigate(`/loans/${res.data._id}`);
+      showToast('Loan registered and agreement generated successfully!', 'success');
+      navigate(`${prefix}/loans/${res.data._id}`);
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Failed to disburse loan', 'error');
     } finally {
@@ -220,7 +239,7 @@ export default function CreateLoan() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/loans/active')}
+          onClick={() => navigate(`${prefix}/loans/active`)}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Loans

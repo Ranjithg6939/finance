@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loanService } from '../../services/loanService';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
 import { useApp } from '../../context/AppContext';
@@ -11,6 +12,8 @@ import { CheckCircle2, Eye, Search } from 'lucide-react';
 export default function CompletedLoans() {
   const navigate = useNavigate();
   const { showToast } = useApp();
+  const { user } = useAuth();
+  const prefix = user?.role === 'admin' ? '/admin' : '/staff';
 
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +125,7 @@ export default function CompletedLoans() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => navigate(`/loans/${loan._id}`)}
+                        onClick={() => navigate(`${prefix}/loans/${loan._id}`)}
                         className="p-1 text-slate-500 hover:text-emerald-600 rounded hover:bg-slate-100"
                         title="View Full Ledger"
                       >

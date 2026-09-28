@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customerService } from '../../services/customerService';
+import { staffService } from '../../services/staffService';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, maskString } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
 import { useApp } from '../../context/AppContext';
@@ -8,40 +10,48 @@ import Button from '../../components/common/Button';
 import Loader from '../../components/common/Loader';
 import DocumentUploader from '../../components/documents/DocumentUploader';
 import {
-  User,
   ArrowLeft,
   BadgePercent,
   Upload,
-  Coins,
-  Receipt,
-  FileText,
-  Clock,
-  CheckCircle2,
   Phone,
   Mail,
-  MapPin,
-  Briefcase,
-  Shield,
-  Calendar,
+  UserCheck,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 export default function CustomerDetails() {
   const { customerId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useApp();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
+  const prefix = isAdmin ? '/admin' : '/staff';
 
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
 
+  // Staff Assignment State (Admin Only)
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
+
   const fetchCustomer = async () => {
     try {
       setLoading(true);
       const res = await customerService.getById(customerId);
       setCustomer(res.data);
+      if (res.data?.assignedStaff?._id) {
+        setSelectedStaffId(res.data.assignedStaff._id);
+      } else if (res.data?.assignedStaff) {
+        setSelectedStaffId(res.data.assignedStaff);
+      }
     } catch (err) {
-      showToast('Failed to load customer profile', 'error');
+      showToast(err.response?.data?.message || 'Failed to load customer profile', 'error');
     } finally {
       setLoading(false);
     }
@@ -51,6 +61,45 @@ export default function CustomerDetails() {
     fetchCustomer();
   }, [customerId]);
 
+  const handleOpenAssignModal = async () => {
+    try {
+      const res = await staffService.getAll({ status: 'active' });
+      setStaffList(res.data || []);
+      setIsAssignModalOpen(true);
+    } catch (err) {
+      showToast('Failed to load active staff list', 'error');
+    }
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setAssignSubmitting(true);
+      await customerService.assignStaff(customer._id, selectedStaffId || null);
+      showToast('Staff assignment updated successfully', 'success');
+      setIsAssignModalOpen(false);
+      fetchCustomer();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to assign staff', 'error');
+    } finally {
+      setAssignSubmitting(false);
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!window.confirm(`Are you sure you want to delete customer "${customer.fullName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await customerService.delete(customer._id);
+      showToast('Customer deleted successfully', 'success');
+      navigate(`${prefix}/customers`);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to delete customer', 'error');
+    }
+  };
+
   if (loading) {
     return <Loader text="Loading customer profile..." />;
   }
@@ -59,7 +108,7 @@ export default function CustomerDetails() {
     return (
       <div className="text-center py-12 text-slate-500">
         <p>Customer not found</p>
-        <Button onClick={() => navigate('/customers')} className="mt-4" size="sm">
+        <Button onClick={() => navigate(`${prefix}/customers`)} className="mt-4" size="sm">
           Return to Customers
         </Button>
       </div>
@@ -67,12 +116,13 @@ export default function CustomerDetails() {
   }
 
   const { summary } = customer;
+  const assignedStaffName = customer.assignedStaff?.name || customer.assignedStaffName || 'Unassigned';
 
   return (
     <div className="space-y-6">
       {/* Back button */}
       <button
-        onClick={() => navigate('/customers')}
+        onClick={() => navigate(`${prefix}/customers`)}
         className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Customers
@@ -94,7 +144,14 @@ export default function CustomerDetails() {
               >
                 {customer.status}
               </span>
+
+              {/* Assigned Staff Tag */}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                <UserCheck className="w-3 h-3" />
+                Staff: {assignedStaffName}
+              </span>
             </div>
+
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1">
               <span className="font-mono text-slate-700 font-medium">ID: {customer.customerId}</span>
               <span className="flex items-center gap-1">
@@ -111,6 +168,18 @@ export default function CustomerDetails() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Admin Staff Assignment Button */}
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleOpenAssignModal}
+              className="flex items-center gap-1"
+            >
+              <UserCheck className="w-3.5 h-3.5" /> Assign Staff
+            </Button>
+          )}
+
           <Button
             size="sm"
             variant="secondary"
@@ -118,12 +187,24 @@ export default function CustomerDetails() {
           >
             <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Document
           </Button>
+
           <Button
             size="sm"
-            onClick={() => navigate(`/loans/new?customer=${customer._id}`)}
+            onClick={() => navigate(`${prefix}/loans/new?customer=${customer._id}`)}
           >
             <BadgePercent className="w-3.5 h-3.5 mr-1.5" /> Create Loan
           </Button>
+
+          {/* Admin Only Delete */}
+          {isAdmin && (
+            <button
+              onClick={handleDeleteCustomer}
+              title="Delete Customer"
+              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -132,8 +213,8 @@ export default function CustomerDetails() {
         <nav className="flex space-x-6">
           {[
             { id: 'overview', label: 'Overview' },
-            { id: 'active_loans', label: `Active Loans (${customer.activeLoans?.length || 0})` },
-            { id: 'loan_history', label: `Loan History (${customer.completedLoans?.length || 0})` },
+            { id: 'active_loans', label: `Active Loans (${customer.activeLoans?.length || customer.loans?.filter(l => l.status === 'active')?.length || 0})` },
+            { id: 'loan_history', label: `Loan History (${customer.completedLoans?.length || customer.loans?.filter(l => l.status === 'completed')?.length || 0})` },
             { id: 'payments', label: `Payments (${customer.payments?.length || 0})` },
             { id: 'documents', label: `Documents (${customer.documents?.length || 0})` },
           ].map((tab) => (
@@ -152,41 +233,33 @@ export default function CustomerDetails() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* 6 Summary Metric Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-[11px] font-semibold text-slate-400 uppercase">Total Loans</span>
               <p className="text-xl font-bold text-slate-800 mt-1">{summary?.totalLoans || 0}</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-[11px] font-semibold text-blue-600 uppercase">Active Loans</span>
-              <p className="text-xl font-bold text-blue-700 mt-1">{summary?.activeLoans || 0}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-emerald-600 uppercase">Completed</span>
-              <p className="text-xl font-bold text-emerald-700 mt-1">{summary?.completedLoans || 0}</p>
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">Total Borrowed</span>
-              <p className="text-lg font-bold text-slate-800 mt-1">{formatCurrency(summary?.totalBorrowed)}</p>
+              <p className="text-xl font-bold text-blue-700 mt-1">{summary?.activeLoansCount || 0}</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-[11px] font-semibold text-emerald-600 uppercase">Total Paid</span>
-              <p className="text-lg font-bold text-emerald-700 mt-1">{formatCurrency(summary?.totalPaid)}</p>
+              <p className="text-xl font-bold text-emerald-700 mt-1 font-mono">{formatCurrency(summary?.totalPaid || 0)}</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-[11px] font-semibold text-rose-600 uppercase">Outstanding</span>
-              <p className="text-lg font-bold text-rose-700 mt-1">{formatCurrency(summary?.outstanding)}</p>
+              <p className="text-xl font-bold text-rose-700 mt-1 font-mono">{formatCurrency(summary?.totalOutstanding || 0)}</p>
             </div>
           </div>
 
-          {/* Personal Information Grid */}
+          {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal & Address Details</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal Information</h3>
               <div className="space-y-2.5 text-xs text-slate-600">
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-400">Date of Birth:</span>
@@ -201,6 +274,10 @@ export default function CustomerDetails() {
                   <span className="font-medium text-slate-800 text-right">
                     {customer.address?.addressLine || '—'}, {customer.address?.city || ''} {customer.address?.state || ''} {customer.address?.pincode || ''}
                   </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-400">Assigned Staff Executive:</span>
+                  <span className="font-bold text-emerald-700">{assignedStaffName}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-400">ID ({customer.identification?.idType || 'Aadhaar'}):</span>
@@ -225,7 +302,7 @@ export default function CustomerDetails() {
                   <span className="font-medium text-slate-800">{customer.employment?.employmentType || '—'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-400">Company / Business:</span>
+                  <span className="text-slate-400">Company:</span>
                   <span className="font-medium text-slate-800">{customer.employment?.companyName || '—'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
@@ -247,16 +324,16 @@ export default function CustomerDetails() {
       {/* Active Loans Tab */}
       {activeTab === 'active_loans' && (
         <div className="space-y-4">
-          {customer.activeLoans?.length === 0 ? (
+          {(!customer.loans || customer.loans.filter(l => l.status === 'active').length === 0) ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs text-slate-400">
               No active loans for this customer.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {customer.activeLoans.map((l) => (
+              {customer.loans.filter(l => l.status === 'active').map((l) => (
                 <div
                   key={l._id}
-                  onClick={() => navigate(`/loans/${l._id}`)}
+                  onClick={() => navigate(`${prefix}/loans/${l._id}`)}
                   className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-emerald-500 cursor-pointer transition-all space-y-3"
                 >
                   <div className="flex items-center justify-between">
@@ -275,17 +352,6 @@ export default function CustomerDetails() {
                       <p className="font-bold text-rose-600">{formatCurrency(l.outstandingAmount)}</p>
                     </div>
                   </div>
-                  {/* Progress bar */}
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-1.5 rounded-full"
-                      style={{ width: `${Math.min(100, Math.round(((l.totalPaid || 0) / (l.totalPayable || 1)) * 100))}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>Paid: {formatCurrency(l.totalPaid)}</span>
-                    <span>Total: {formatCurrency(l.totalPayable)}</span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -293,39 +359,30 @@ export default function CustomerDetails() {
         </div>
       )}
 
-      {/* Loan History Tab (Completed Loans) */}
+      {/* Loan History Tab */}
       {activeTab === 'loan_history' && (
         <div className="space-y-4">
-          {customer.completedLoans?.length === 0 ? (
+          {(!customer.loans || customer.loans.filter(l => l.status === 'completed').length === 0) ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs text-slate-400">
-              No completed loan records yet.
+              No completed loan records.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {customer.completedLoans.map((l) => (
+              {customer.loans.filter(l => l.status === 'completed').map((l) => (
                 <div
                   key={l._id}
-                  onClick={() => navigate(`/loans/${l._id}`)}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-emerald-500 cursor-pointer transition-all space-y-2 text-xs"
+                  onClick={() => navigate(`${prefix}/loans/${l._id}`)}
+                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:border-emerald-500 cursor-pointer transition-all space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-slate-800">{l.loanId}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="font-mono text-xs font-bold text-slate-800">{l.loanId}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 capitalize">
                       Completed
                     </span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Amount Borrowed:</span>
-                    <span className="font-semibold text-slate-900">{formatCurrency(l.principalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Total Repaid:</span>
-                    <span className="font-semibold text-emerald-700">{formatCurrency(l.totalPaid)}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
-                    <span>Started: {formatDate(l.startDate)}</span>
-                    <span>Completed: {formatDate(l.completedAt || l.updatedAt)}</span>
-                  </div>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Total Paid: {formatCurrency(l.totalPaid)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -337,76 +394,104 @@ export default function CustomerDetails() {
       {activeTab === 'payments' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
                 <tr>
-                  <th className="px-4 py-3">Payment ID</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Principal</th>
-                  <th className="px-4 py-3">Interest</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Reference</th>
+                  <th className="px-4 py-2.5">Receipt #</th>
+                  <th className="px-4 py-2.5">Date</th>
+                  <th className="px-4 py-2.5">Method</th>
+                  <th className="px-4 py-2.5 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {customer.payments?.map((p) => (
-                  <tr key={p._id} className="hover:bg-slate-50/80">
-                    <td className="px-4 py-3 font-mono font-semibold text-slate-800">{p.paymentId}</td>
-                    <td className="px-4 py-3">{formatDate(p.paymentDate)}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900">{formatCurrency(p.amount)}</td>
-                    <td className="px-4 py-3">{formatCurrency(p.principalAmount)}</td>
-                    <td className="px-4 py-3 text-amber-600">{formatCurrency(p.interestAmount)}</td>
-                    <td className="px-4 py-3 capitalize">{p.paymentMethod.replace('_', ' ')}</td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{p.transactionReference || '—'}</td>
+                {(!customer.payments || customer.payments.length === 0) ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-6 text-slate-400">
+                      No payments recorded yet.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  customer.payments.map((p) => (
+                    <tr key={p._id}>
+                      <td className="px-4 py-2.5 font-mono text-slate-700">{p.paymentId}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{formatDate(p.paymentDate)}</td>
+                      <td className="px-4 py-2.5 text-slate-600">{p.paymentMethod}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-emerald-700 font-mono">
+                        {formatCurrency(p.amount)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Documents Tab */}
-      {activeTab === 'documents' && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={() => setIsDocModalOpen(true)}>
-              <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Document
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {customer.documents?.map((d) => (
-              <div key={d._id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-emerald-600" />
-                  <p className="text-xs font-bold text-slate-800 truncate">{d.title}</p>
-                </div>
-                <p className="text-[11px] text-slate-400 capitalize">{d.documentType.replace('_', ' ')}</p>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
-                  <span className="text-slate-400">{formatDate(d.createdAt)}</span>
-                  <a
-                    href={d.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-emerald-600 font-semibold hover:underline"
-                  >
-                    View File
-                  </a>
-                </div>
+      {/* Assign Staff Modal (Admin Only) */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Assign Staff Member</h3>
+                <p className="text-xs text-slate-500">For customer: {customer.fullName}</p>
               </div>
-            ))}
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Select Field Executive</label>
+                <select
+                  value={selectedStaffId}
+                  onChange={(e) => setSelectedStaffId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {staffList.map((st) => (
+                    <option key={st._id} value={st._id}>
+                      {st.name} ({st.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Reassigning this customer also updates all associated active loans.
+                </p>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsAssignModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={assignSubmitting}>
+                  {assignSubmitting ? 'Saving...' : 'Save Assignment'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Upload Document Modal */}
-      <DocumentUploader
-        isOpen={isDocModalOpen}
-        onClose={() => setIsDocModalOpen(false)}
-        preselectedCustomerId={customer._id}
-        onUploadSuccess={fetchCustomer}
-      />
+      {/* Document Uploader Modal */}
+      {isDocModalOpen && (
+        <DocumentUploader
+          isOpen={isDocModalOpen}
+          onClose={() => setIsDocModalOpen(false)}
+          customerId={customer._id}
+          onUploadSuccess={() => fetchCustomer()}
+        />
+      )}
     </div>
   );
 }

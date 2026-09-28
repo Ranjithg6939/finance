@@ -4,6 +4,8 @@ import { customerService } from '../../services/customerService';
 import { useApp } from '../../context/AppContext';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import { useAuth } from '../../context/AuthContext';
+import { staffService } from '../../services/staffService';
 import { User, MapPin, ShieldCheck, Briefcase, UserCheck, ArrowLeft } from 'lucide-react';
 import {
   filterLettersOnly,
@@ -22,7 +24,23 @@ import {
 export default function AddCustomer() {
   const navigate = useNavigate();
   const { showToast } = useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const prefix = isAdmin ? '/admin' : '/staff';
+
   const [loading, setLoading] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      staffService
+        .getAll({ status: 'active' })
+        .then((res) => {
+          setStaffList(res.data || []);
+        })
+        .catch(() => {});
+    }
+  }, [isAdmin]);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -30,6 +48,7 @@ export default function AddCustomer() {
     gender: 'Male',
     phone: '',
     email: '',
+    assignedStaff: '',
     address: {
       addressLine: '',
       city: '',
@@ -231,7 +250,7 @@ export default function AddCustomer() {
 
       const res = await customerService.create(payload);
       showToast('Customer created successfully', 'success');
-      navigate(`/customers/${res.data._id}`);
+      navigate(`${prefix}/customers/${res.data._id}`);
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Failed to register customer', 'error');
     } finally {
@@ -244,7 +263,7 @@ export default function AddCustomer() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/customers')}
+          onClick={() => navigate(`${prefix}/customers`)}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Customers
@@ -325,6 +344,31 @@ export default function AddCustomer() {
                 helperText="Valid email format"
               />
             </div>
+
+            {isAdmin && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                  Assign Field Staff Executive
+                </label>
+                <select
+                  name="assignedStaff"
+                  value={formData.assignedStaff}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-300 py-2 px-3 text-xs bg-white focus:outline-none focus:border-emerald-500 text-slate-700"
+                >
+                  <option value="">-- Unassigned (Assign Later) --</option>
+                  {staffList.map((st) => (
+                    <option key={st._id} value={st._id}>
+                      {st.name} ({st.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Assigned staff executive will be able to manage this customer and follow up on loan repayments.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

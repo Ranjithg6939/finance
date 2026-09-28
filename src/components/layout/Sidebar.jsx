@@ -16,13 +16,20 @@ import {
   Landmark,
   X,
   Bell,
+  Shield,
+  History,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { isAdmin, isStaff } from '../../utils/permissions';
 
 export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loansOpen, setLoansOpen] = useState(true);
+
+  const adminRole = isAdmin(user);
+  const prefix = adminRole ? '/admin' : '/staff';
 
   const handleLogout = () => {
     logout();
@@ -53,7 +60,9 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
           </div>
           <div>
             <h1 className="text-base font-bold tracking-tight text-slate-900 leading-none">FinVeda</h1>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Lending Suite</span>
+            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
+              {adminRole ? 'Admin Portal' : 'Staff Suite'}
+            </span>
           </div>
         </div>
         {mobileOpen && (
@@ -63,14 +72,28 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
         )}
       </div>
 
+      {/* Role Pill Indicator */}
+      <div className="px-4 pt-3 pb-1">
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
+            adminRole ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-blue-50 text-blue-800 border border-blue-100'
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5" />
+          <span>Signed in as <strong className="capitalize">{adminRole ? 'Administrator' : 'Staff'}</strong></span>
+        </div>
+      </div>
+
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        <NavLink to="/dashboard" onClick={closeMobileSidebar} className={navLinkClasses}>
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        {/* Dashboard */}
+        <NavLink to={`${prefix}/dashboard`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <LayoutDashboard className="w-4 h-4" />
           <span>Dashboard</span>
         </NavLink>
 
-        <NavLink to="/customers" onClick={closeMobileSidebar} className={navLinkClasses}>
+        {/* Customers */}
+        <NavLink to={`${prefix}/customers`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <Users className="w-4 h-4" />
           <span>Customers</span>
         </NavLink>
@@ -90,15 +113,15 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
 
           {loansOpen && (
             <div className="space-y-0.5 mt-1">
-              <NavLink to="/loans/new" onClick={closeMobileSidebar} className={subNavLinkClasses}>
+              <NavLink to={`${prefix}/loans/new`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
                 <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Create Loan</span>
               </NavLink>
-              <NavLink to="/loans/active" onClick={closeMobileSidebar} className={subNavLinkClasses}>
+              <NavLink to={`${prefix}/loans/active`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
                 <Clock className="w-3.5 h-3.5 text-blue-500" />
                 <span>Active Loans</span>
               </NavLink>
-              <NavLink to="/loans/completed" onClick={closeMobileSidebar} className={subNavLinkClasses}>
+              <NavLink to={`${prefix}/loans/completed`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Completed Loans</span>
               </NavLink>
@@ -106,29 +129,58 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
           )}
         </div>
 
-        <NavLink to="/payments" onClick={closeMobileSidebar} className={navLinkClasses}>
+        {/* Payments */}
+        <NavLink to={`${prefix}/payments`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <Receipt className="w-4 h-4" />
           <span>Payments</span>
         </NavLink>
 
-        <NavLink to="/documents" onClick={closeMobileSidebar} className={navLinkClasses}>
+        {/* Staff Only: My Performance */}
+        {!adminRole && (
+          <NavLink to="/staff/performance" onClick={closeMobileSidebar} className={navLinkClasses}>
+            <Award className="w-4 h-4 text-blue-500" />
+            <span>My Performance</span>
+          </NavLink>
+        )}
+
+        {/* Documents */}
+        <NavLink to={`${prefix}/documents`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <FileText className="w-4 h-4" />
           <span>Documents</span>
         </NavLink>
 
-        <NavLink to="/reports" onClick={closeMobileSidebar} className={navLinkClasses}>
-          <BarChart3 className="w-4 h-4" />
-          <span>Reports</span>
-        </NavLink>
+        {/* ADMIN ONLY SECTIONS */}
+        {adminRole && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Administration</span>
+            </div>
 
-        <NavLink to="/notifications" onClick={closeMobileSidebar} className={navLinkClasses}>
+            <NavLink to="/admin/staff" onClick={closeMobileSidebar} className={navLinkClasses}>
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span>Staff Management</span>
+            </NavLink>
+
+            <NavLink to="/admin/reports" onClick={closeMobileSidebar} className={navLinkClasses}>
+              <BarChart3 className="w-4 h-4" />
+              <span>Reports</span>
+            </NavLink>
+
+            <NavLink to="/admin/activity-logs" onClick={closeMobileSidebar} className={navLinkClasses}>
+              <History className="w-4 h-4 text-blue-500" />
+              <span>Audit Logs</span>
+            </NavLink>
+
+            <NavLink to="/admin/settings" onClick={closeMobileSidebar} className={navLinkClasses}>
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
+            </NavLink>
+          </>
+        )}
+
+        <NavLink to={`${prefix}/notifications`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <Bell className="w-4 h-4" />
           <span>Notifications</span>
-        </NavLink>
-
-        <NavLink to="/settings" onClick={closeMobileSidebar} className={navLinkClasses}>
-          <Settings className="w-4 h-4" />
-          <span>Settings</span>
         </NavLink>
       </div>
 

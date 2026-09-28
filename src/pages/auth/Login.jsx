@@ -43,9 +43,14 @@ export default function Login() {
 
     try {
       setLoading(true);
-      await login(cleanEmail, password);
+      const authRes = await login(cleanEmail, password);
       showToast('Welcome back!', 'success');
-      navigate('/dashboard');
+      const userRole = authRes?.user?.role || 'staff';
+      if (userRole === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/staff/dashboard');
+      }
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Invalid email or password', 'error');
     } finally {

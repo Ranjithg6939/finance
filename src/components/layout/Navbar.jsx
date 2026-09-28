@@ -9,10 +9,13 @@ export default function Navbar({ toggleMobileSidebar }) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isAdmin = user?.role === 'admin';
+  const prefix = isAdmin ? '/admin' : '/staff';
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    navigate(`/customers?search=${encodeURIComponent(searchQuery.trim())}`);
+    navigate(`${prefix}/customers?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   return (
@@ -34,7 +37,7 @@ export default function Navbar({ toggleMobileSidebar }) {
             placeholder="Search customers, loans, phone numbers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none transition-colors"
+            className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none transition-colors"
           />
         </form>
       </div>
@@ -44,17 +47,26 @@ export default function Navbar({ toggleMobileSidebar }) {
 
         <div className="h-6 w-px bg-slate-200 mx-1" />
 
-        {/* Profile Card */}
+        {/* Profile Card with Clear Role Display */}
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          <div
+            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm ${
+              isAdmin ? 'bg-emerald-600' : 'bg-blue-600'
+            }`}
+          >
             {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </div>
           <div className="hidden md:flex flex-col text-left">
             <span className="text-xs font-semibold text-slate-800 leading-tight">
-              {user?.name || 'Administrator'}
+              {user?.name || (isAdmin ? 'Administrator' : 'Staff Executive')}
             </span>
-            <span className="text-[10px] text-emerald-600 font-medium capitalize flex items-center gap-0.5">
-              <Shield className="w-2.5 h-2.5 inline" /> {user?.role || 'staff'}
+            <span
+              className={`text-[10px] font-semibold capitalize flex items-center gap-1 ${
+                isAdmin ? 'text-emerald-700' : 'text-blue-700'
+              }`}
+            >
+              <Shield className="w-2.5 h-2.5 inline" />
+              {isAdmin ? 'Administrator' : 'Staff'}
             </span>
           </div>
         </div>

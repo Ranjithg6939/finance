@@ -25,6 +25,19 @@ export const dashboardService = {
     }
   },
 
+  getAdminFinancials: async () => {
+    if (isLocalMode()) {
+      return localStorageDb.getAdminFinancials();
+    }
+    try {
+      const res = await api.get('/dashboard/admin-financials');
+      return res.data;
+    } catch (err) {
+      if (err.response?.status === 403) throw err;
+      return localStorageDb.getAdminFinancials();
+    }
+  },
+
   getMonthlyCollections: async () => {
     if (isLocalMode()) {
       return localStorageDb.getMonthlyCollections();
@@ -33,6 +46,7 @@ export const dashboardService = {
       const res = await api.get('/dashboard/monthly-collections');
       return res.data;
     } catch (err) {
+      if (err.response?.status === 403) throw err;
       return localStorageDb.getMonthlyCollections();
     }
   },

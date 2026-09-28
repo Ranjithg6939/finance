@@ -84,6 +84,18 @@ export const customerService = {
     }
   },
 
+  assignStaff: async (id, staffId) => {
+    if (isLocalMode()) {
+      return localStorageDb.assignCustomerStaff(id, staffId);
+    }
+    try {
+      const res = await api.patch(`/customers/${id}/assign`, { staffId });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.assignCustomerStaff(id, staffId);
+    }
+  },
+
   getLoans: async (id) => {
     if (isLocalMode()) {
       return localStorageDb.getLoans({ customerId: id });

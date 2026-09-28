@@ -17,7 +17,9 @@ const STORAGE_KEYS = {
   PAYMENTS: 'finveda_payments',
   DOCUMENTS: 'finveda_documents',
   NOTIFICATIONS: 'finveda_notifications',
-  INITIALIZED: 'finveda_initialized_v1',
+  STAFF: 'finveda_staff',
+  ACTIVITY_LOGS: 'finveda_activity_logs',
+  INITIALIZED: 'finveda_initialized_v2',
 };
 
 // Helpers for safe storage access
@@ -1127,35 +1129,164 @@ export const localStorageDb = {
   // DASHBOARD
   // ----------------------------------------------------
   getDashboardSummary: () => {
+    let currentUser = null;
+    try {
+      const rawUser = localStorage.getItem('user');
+      currentUser = rawUser ? JSON.parse(rawUser) : null;
+    } catch (e) {
+      currentUser = null;
+    }
+
+    const isStaff = currentUser?.role === 'staff';
+    const staffId = currentUser?._id;
+
     const customers = getItem(STORAGE_KEYS.CUSTOMERS);
     const loans = getItem(STORAGE_KEYS.LOANS);
     const payments = getItem(STORAGE_KEYS.PAYMENTS);
 
+    if (isStaff) {
+      // STRICT STAFF OPERATIONAL METRICS ONLY - ZERO financial totals or profits
+      const myCustomers = customers.filter(
+        (c) => c.assignedStaff === staffId || c.assignedStaff?._id === staffId
+      );
+      const myLoans = loans.filter(
+        (l) => l.assignedStaff === staffId || l.assignedStaff?._id === staffId
+      );
+      const activeLoans = myLoans.filter((l) => l.status === 'active');
+      const completedLoans = myLoans.filter((l) => l.status === 'completed');
+      const pendingLoans = myLoans.filter((l) => l.status === 'pending');
+
+      let pendingInstallmentsCount = 0;
+      let overdueInstallmentsCount = 0;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const assignedTasks = [];
+
+      activeLoans.forEach((loan) => {
+        if (Array.isArray(loan.schedule)) {
+          loan.schedule.forEach((inst) => {
+            if (inst.status !== 'paid') {
+              pendingInstallmentsCount++;
+              const isOverdue = inst.dueDate < todayStr;
+              const isDueToday = inst.dueDate === todayStr;
+              if (isOverdue) overdueInstallmentsCount++;
+
+              if (isOverdue || isDueToday || assignedTasks.length < 10) {
+                assignedTasks.push({
+                  taskId: `${loan._id}-${inst.installmentNumber}`,
+                  loanId: loan.loanId,
+                  loanMongoId: loan._id,
+                  customerId: loan.customerId || loan.customer?._id,
+                  customerName: loan.customer?.fullName || 'Borrower',
+                  customerPhone: loan.customer?.phone || '',
+                  installmentNumber: inst.installmentNumber,
+                  dueDate: inst.dueDate,
+                  status: isOverdue ? 'overdue' : isDueToday ? 'due_today' : 'upcoming',
+                  taskType: isOverdue
+                    ? 'Recovery Follow-up (Overdue)'
+                    : isDueToday
+                    ? 'Collect Installment (Today)'
+                    : 'Upcoming Scheduled Due',
+                });
+              }
+            }
+          });
+        }
+      });
+
+      return {
+        success: true,
+        role: 'staff',
+        data: {
+          totalCustomers: myCustomers.length,
+          activeLoansCount: activeLoans.length,
+          completedLoansCount: completedLoans.length,
+          pendingLoansCount: pendingLoans.length,
+          pendingInstallmentsCount,
+          overdueInstallmentsCount,
+          assignedTasksCount: assignedTasks.length,
+          assignedTasks: assignedTasks.slice(0, 10),
+          isStaffView: true,
+          staffName: currentUser?.name || 'Staff Member',
+        },
+      };
+    }
+
+    // ADMIN SUMMARY (Operational + Executive Financials)
     const activeLoans = loans.filter((l) => l.status === 'active');
     const completedLoans = loans.filter((l) => l.status === 'completed');
+    const pendingLoans = loans.filter((l) => l.status === 'pending');
 
-    const totalLoanAmount = loans.reduce((sum, l) => sum + (parseFloat(l.principalAmount) || 0), 0);
-    const outstandingAmount = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
-    const interestCollected = payments.reduce((sum, p) => sum + (parseFloat(p.interestAmount) || 0), 0);
+    const totalCollections = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const pendingPayments = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
+    const totalRevenue = loans.reduce(
+      (sum, l) => sum + (parseFloat(l.totalInterest) || 0) + (parseFloat(l.processingFee) || 0),
+      0
+    );
+    const totalExpenses = Math.round(totalRevenue * 0.22);
+    const netProfit = Math.max(0, totalRevenue - totalExpenses);
 
-    // Count pending scheduled installments
-    let pendingPayments = 0;
-    activeLoans.forEach((l) => {
-      if (Array.isArray(l.schedule)) {
-        pendingPayments += l.schedule.filter((s) => s.status !== 'paid').length;
-      }
-    });
+    return {
+      success: true,
+      role: 'admin',
+      data: {
+        totalCustomers: customers.length,
+        totalLoans: loans.length,
+        activeLoansCount: activeLoans.length,
+        completedLoansCount: completedLoans.length,
+        pendingLoansCount: pendingLoans.length,
+        totalCollections,
+        pendingPayments,
+        totalRevenue,
+        totalExpenses,
+        netProfit,
+        overallOutstandingAmount: pendingPayments,
+        totalStaff: getItem(STORAGE_KEYS.STAFF).length,
+        isStaffView: false,
+      },
+    };
+  },
+
+  getAdminFinancials: () => {
+    let currentUser = null;
+    try {
+      const rawUser = localStorage.getItem('user');
+      currentUser = rawUser ? JSON.parse(rawUser) : null;
+    } catch (e) {
+      currentUser = null;
+    }
+
+    if (currentUser?.role === 'staff') {
+      const err = new Error('Access Denied: Financial summary and analytics are restricted to Administrator.');
+      err.response = { status: 403, data: { message: err.message } };
+      throw err;
+    }
+
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const payments = getItem(STORAGE_KEYS.PAYMENTS);
+    const activeLoans = loans.filter((l) => l.status === 'active');
+
+    const totalCollections = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const overallOutstandingAmount = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
+    const totalDisbursed = loans.reduce((sum, l) => sum + (parseFloat(l.principalAmount) || 0), 0);
+    const totalRevenue = loans.reduce(
+      (sum, l) => sum + (parseFloat(l.totalInterest) || 0) + (parseFloat(l.processingFee) || 0),
+      0
+    );
+    const totalExpenses = Math.round(totalRevenue * 0.22);
+    const netProfit = Math.max(0, totalRevenue - totalExpenses);
+    const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
 
     return {
       success: true,
       data: {
-        totalCustomers: customers.length,
-        activeLoans: activeLoans.length,
-        totalLoanAmount,
-        outstandingAmount,
-        interestCollected,
-        completedLoans: completedLoans.length,
-        pendingPayments,
+        totalCollections,
+        totalRevenue,
+        totalExpenses,
+        netProfit,
+        totalProfit: totalRevenue,
+        overallOutstandingAmount,
+        totalDisbursed,
+        profitMargin: `${profitMargin}%`,
       },
     };
   },
@@ -1298,6 +1429,169 @@ export const localStorageDb = {
     });
 
     return { success: true, data };
+  },
+
+  // STAFF MANAGEMENT (RBAC)
+  getStaff: (params = {}) => {
+    let staff = getItem(STORAGE_KEYS.STAFF, [
+      {
+        _id: 'staff-001',
+        name: 'Arun Prakash',
+        email: 'staff@finance.com',
+        phone: '9876543211',
+        role: 'staff',
+        status: 'active',
+        assignedCustomersCount: 2,
+        assignedActiveLoansCount: 1,
+        totalCollections: 61600,
+        createdAt: '2026-01-10T10:00:00.000Z',
+      },
+      {
+        _id: 'staff-002',
+        name: 'Kavitha Sundaram',
+        email: 'kavitha@finance.com',
+        phone: '9876543212',
+        role: 'staff',
+        status: 'active',
+        assignedCustomersCount: 1,
+        assignedActiveLoansCount: 1,
+        totalCollections: 74770,
+        createdAt: '2026-01-12T10:00:00.000Z',
+      },
+    ]);
+
+    if (params.status) {
+      staff = staff.filter((s) => s.status === params.status);
+    }
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      staff = staff.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.email.toLowerCase().includes(q) ||
+          (s.phone && s.phone.includes(q))
+      );
+    }
+
+    return { success: true, count: staff.length, data: staff };
+  },
+
+  getStaffById: (id) => {
+    const list = localStorageDb.getStaff().data;
+    const found = list.find((s) => s._id === id);
+    if (!found) return { success: false, message: 'Staff member not found' };
+    return { success: true, data: found };
+  },
+
+  createStaff: (data) => {
+    const list = localStorageDb.getStaff().data;
+    const newStaff = {
+      _id: 'staff-' + Date.now(),
+      name: data.name,
+      email: data.email,
+      phone: data.phone || '',
+      role: data.role || 'staff',
+      status: data.status || 'active',
+      assignedCustomersCount: 0,
+      assignedActiveLoansCount: 0,
+      totalCollections: 0,
+      createdAt: new Date().toISOString(),
+    };
+    list.unshift(newStaff);
+    setItem(STORAGE_KEYS.STAFF, list);
+    return { success: true, data: newStaff };
+  },
+
+  updateStaff: (id, data) => {
+    const list = localStorageDb.getStaff().data;
+    const idx = list.findIndex((s) => s._id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...data };
+      setItem(STORAGE_KEYS.STAFF, list);
+      return { success: true, data: list[idx] };
+    }
+    return { success: false, message: 'Staff not found' };
+  },
+
+  toggleStaffStatus: (id, status) => {
+    return localStorageDb.updateStaff(id, { status });
+  },
+
+  resetStaffPassword: (id, newPassword) => {
+    return { success: true, message: 'Password updated successfully' };
+  },
+
+  deleteStaff: (id) => {
+    const list = localStorageDb.getStaff().data;
+    const filtered = list.filter((s) => s._id !== id);
+    setItem(STORAGE_KEYS.STAFF, filtered);
+    return { success: true, message: 'Staff deleted' };
+  },
+
+  assignCustomerStaff: (customerId, staffId) => {
+    const customers = getItem(STORAGE_KEYS.CUSTOMERS);
+    const staffList = localStorageDb.getStaff().data;
+    const staff = staffList.find((s) => s._id === staffId);
+
+    const cIdx = customers.findIndex((c) => c._id === customerId);
+    if (cIdx !== -1) {
+      customers[cIdx].assignedStaff = staff ? { _id: staff._id, name: staff.name, email: staff.email } : null;
+      customers[cIdx].assignedStaffName = staff ? staff.name : 'Unassigned';
+      setItem(STORAGE_KEYS.CUSTOMERS, customers);
+
+      const loans = getItem(STORAGE_KEYS.LOANS);
+      loans.forEach((l) => {
+        if (l.customerId === customerId || l.customer?._id === customerId) {
+          l.assignedStaff = staff ? { _id: staff._id, name: staff.name } : null;
+        }
+      });
+      setItem(STORAGE_KEYS.LOANS, loans);
+
+      return { success: true, data: customers[cIdx] };
+    }
+    return { success: false, message: 'Customer not found' };
+  },
+
+  changeLoanStatus: (loanId, status) => {
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const idx = loans.findIndex((l) => l._id === loanId);
+    if (idx !== -1) {
+      loans[idx].status = status;
+      setItem(STORAGE_KEYS.LOANS, loans);
+      return { success: true, data: loans[idx] };
+    }
+    return { success: false, message: 'Loan not found' };
+  },
+
+  assignLoanStaff: (loanId, staffId) => {
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const staffList = localStorageDb.getStaff().data;
+    const staff = staffList.find((s) => s._id === staffId);
+
+    const idx = loans.findIndex((l) => l._id === loanId);
+    if (idx !== -1) {
+      loans[idx].assignedStaff = staff ? { _id: staff._id, name: staff.name } : null;
+      setItem(STORAGE_KEYS.LOANS, loans);
+      return { success: true, data: loans[idx] };
+    }
+    return { success: false, message: 'Loan not found' };
+  },
+
+  getActivityLogs: (params = {}) => {
+    const defaultLogs = [
+      { _id: 'log-1', userName: 'System Administrator', role: 'admin', action: 'System Initialized with RBAC', resource: 'System', resourceId: 'SYS-01', createdAt: new Date(Date.now() - 3600000).toISOString() },
+      { _id: 'log-2', userName: 'System Administrator', role: 'admin', action: 'Admin created staff: Arun Prakash', resource: 'Staff', resourceId: 'staff-001', createdAt: new Date(Date.now() - 7200000).toISOString() },
+      { _id: 'log-3', userName: 'System Administrator', role: 'admin', action: 'Admin assigned customer Ramesh Kumar to Arun Prakash', resource: 'Customer', resourceId: 'CUST-1001', createdAt: new Date(Date.now() - 10800000).toISOString() },
+      { _id: 'log-4', userName: 'Arun Prakash', role: 'staff', action: 'Staff recorded payment of ₹10,333 for LN-1001', resource: 'Payment', resourceId: 'PAY-1001', createdAt: new Date(Date.now() - 14400000).toISOString() },
+    ];
+    let logs = getItem(STORAGE_KEYS.ACTIVITY_LOGS, defaultLogs);
+    if (params.resource) {
+      logs = logs.filter((l) => l.resource.toLowerCase() === params.resource.toLowerCase());
+    }
+    if (params.role) {
+      logs = logs.filter((l) => l.role.toLowerCase() === params.role.toLowerCase());
+    }
+    return { success: true, count: logs.length, data: logs };
   },
 
   // Reset database to seed state

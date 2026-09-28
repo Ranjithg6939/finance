@@ -82,6 +82,30 @@ export const loanService = {
     }
   },
 
+  changeStatus: async (id, status) => {
+    if (isLocalMode()) {
+      return localStorageDb.changeLoanStatus(id, status);
+    }
+    try {
+      const res = await api.patch(`/loans/${id}/status`, { status });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.changeLoanStatus(id, status);
+    }
+  },
+
+  assignStaff: async (id, staffId) => {
+    if (isLocalMode()) {
+      return localStorageDb.assignLoanStaff(id, staffId);
+    }
+    try {
+      const res = await api.patch(`/loans/${id}/assign`, { staffId });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.assignLoanStaff(id, staffId);
+    }
+  },
+
   getByCustomer: async (customerId) => {
     if (isLocalMode()) {
       return localStorageDb.getLoans({ customerId });

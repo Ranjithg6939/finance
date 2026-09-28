@@ -77,12 +77,27 @@ export default function DocumentUploader({
     }
   };
 
+  const [errors, setErrors] = useState({});
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!documentName.trim()) {
+      errs.documentName = 'Document name is required';
+    }
     if (!file) {
-      showToast('Please select a file to upload', 'error');
+      errs.file = 'Please select a file to upload';
+    } else if (file.size > 10 * 1024 * 1024) {
+      errs.file = 'File size cannot exceed 10 MB';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      showToast(Object.values(errs)[0], 'error');
       return;
     }
+
+    setErrors({});
 
     try {
       setLoading(true);
@@ -91,7 +106,7 @@ export default function DocumentUploader({
       if (customerId) formData.append('customerId', customerId);
       if (loanId) formData.append('loanId', loanId);
       formData.append('documentType', documentType);
-      formData.append('documentName', documentName);
+      formData.append('documentName', documentName.trim());
 
       const res = await documentService.upload(formData);
       showToast('Document uploaded successfully', 'success');
@@ -170,9 +185,13 @@ export default function DocumentUploader({
             label="Document Name *"
             name="documentName"
             value={documentName}
-            onChange={(e) => setDocumentName(e.target.value)}
+            onChange={(e) => {
+              setDocumentName(e.target.value);
+              if (errors.documentName) setErrors((prev) => ({ ...prev, documentName: null }));
+            }}
             placeholder="e.g. Aadhaar Card Front"
             required
+            error={errors.documentName}
           />
         </div>
 

@@ -5,6 +5,19 @@ import { useApp } from '../../context/AppContext';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import { User, MapPin, ShieldCheck, Briefcase, UserCheck, ArrowLeft } from 'lucide-react';
+import {
+  filterLettersOnly,
+  filterDigitsOnly,
+  filterAmount,
+  filterAlphanumeric,
+  validateName,
+  validateMobile,
+  validateAadhaar,
+  validatePAN,
+  validateEmail,
+  validatePincode,
+  validateAmount,
+} from '../../utils/validation';
 
 export default function AddCustomer() {
   const navigate = useNavigate();
@@ -42,26 +55,167 @@ export default function AddCustomer() {
     status: 'active',
   });
 
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // Today's date in YYYY-MM-DD format for DOB max limit
+  const todayDate = new Date().toISOString().split('T')[0];
+
+  // Validate a single field based on name and value
+  const validateField = (name, value, currentFormData = formData) => {
+    switch (name) {
+      case 'fullName':
+        return validateName(value, 'Full Name', true);
+      case 'phone':
+        return validateMobile(value, true, 'Mobile Number');
+      case 'email':
+        return validateEmail(value, false);
+      case 'dateOfBirth':
+        if (value && value > todayDate) {
+          return 'Date of birth cannot be in the future';
+        }
+        return null;
+      case 'address.city':
+        return value ? validateName(value, 'City', false) : null;
+      case 'address.state':
+        return value ? validateName(value, 'State', false) : null;
+      case 'address.pincode':
+        return validatePincode(value, false);
+      case 'identification.idNumber':
+        if (currentFormData.identification.idType === 'Aadhaar') {
+          return validateAadhaar(value, false);
+        } else if (currentFormData.identification.idType === 'PAN') {
+          return validatePAN(value, false);
+        }
+        return null;
+      case 'identification.panNumber':
+        return validatePAN(value, false);
+      case 'employment.occupation':
+        return value ? validateName(value, 'Occupation', false) : null;
+      case 'employment.monthlyIncome':
+        return value ? validateAmount(value, 'Monthly income', 0) : null;
+      case 'referenceContact.name':
+        return value ? validateName(value, 'Reference name', false) : null;
+      case 'referenceContact.phone':
+        return validateMobile(value, false, 'Reference Phone');
+      default:
+        return null;
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let sanitizedValue = value;
+
+    // Strict input filtering while typing
+    if (name === 'fullName' || name === 'referenceContact.name') {
+      // Letters and spaces only
+      sanitizedValue = filterLettersOnly(value);
+    } else if (name === 'phone' || name === 'referenceContact.phone') {
+      // Numbers only, strictly max 10 digits
+      sanitizedValue = filterDigitsOnly(value, 10);
+    } else if (name === 'address.city' || name === 'address.state' || name === 'employment.occupation') {
+      // Letters only for city/state/occupation
+      sanitizedValue = filterLettersOnly(value);
+    } else if (name === 'address.pincode') {
+      // Numbers only, exactly 6 digits max
+      sanitizedValue = filterDigitsOnly(value, 6);
+    } else if (name === 'identification.idNumber') {
+      if (formData.identification.idType === 'Aadhaar') {
+        // Numbers only, max 12 digits
+        sanitizedValue = filterDigitsOnly(value, 12);
+      } else if (formData.identification.idType === 'PAN') {
+        // Uppercase alphanumeric, max 10
+        sanitizedValue = filterAlphanumeric(value, 10);
+      }
+    } else if (name === 'identification.panNumber') {
+      // Uppercase alphanumeric, max 10
+      sanitizedValue = filterAlphanumeric(value, 10);
+    } else if (name === 'employment.monthlyIncome') {
+      // Positive numbers only
+      sanitizedValue = filterAmount(value, 0);
+    }
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData((prev) => ({
         ...prev,
         [parent]: {
           ...prev[parent],
-          [child]: value,
+          [child]: sanitizedValue,
         },
       }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
     }
+
+    // Live validation if the field was already touched
+    if (touched[name]) {
+      const err = validateField(name, sanitizedValue);
+      setErrors((prev) => ({ ...prev, [name]: err }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const err = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: err }));
+  };
+
+  const validateAll = () => {
+    const newErrors = {};
+
+    newErrors['fullName'] = validateField('fullName', formData.fullName);
+    newErrors['phone'] = validateField('phone', formData.phone);
+    newErrors['email'] = validateField('email', formData.email);
+    newErrors['dateOfBirth'] = validateField('dateOfBirth', formData.dateOfBirth);
+    newErrors['address.city'] = validateField('address.city', formData.address.city);
+    newErrors['address.state'] = validateField('address.state', formData.address.state);
+    newErrors['address.pincode'] = validateField('address.pincode', formData.address.pincode);
+    newErrors['identification.idNumber'] = validateField('identification.idNumber', formData.identification.idNumber);
+    newErrors['identification.panNumber'] = validateField('identification.panNumber', formData.identification.panNumber);
+    newErrors['employment.occupation'] = validateField('employment.occupation', formData.employment.occupation);
+    newErrors['employment.monthlyIncome'] = validateField('employment.monthlyIncome', formData.employment.monthlyIncome);
+    newErrors['referenceContact.name'] = validateField('referenceContact.name', formData.referenceContact.name);
+    newErrors['referenceContact.phone'] = validateField('referenceContact.phone', formData.referenceContact.phone);
+
+    // Filter out null errors
+    const activeErrors = {};
+    Object.keys(newErrors).forEach((key) => {
+      if (newErrors[key]) activeErrors[key] = newErrors[key];
+    });
+
+    return activeErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.phone) {
-      showToast('Full name and mobile number are required', 'error');
+
+    // Mark all as touched
+    const allTouched = {
+      fullName: true,
+      phone: true,
+      email: true,
+      dateOfBirth: true,
+      'address.city': true,
+      'address.state': true,
+      'address.pincode': true,
+      'identification.idNumber': true,
+      'identification.panNumber': true,
+      'employment.occupation': true,
+      'employment.monthlyIncome': true,
+      'referenceContact.name': true,
+      'referenceContact.phone': true,
+    };
+    setTouched(allTouched);
+
+    const validationErrors = validateAll();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      const firstErrorMessage = Object.values(validationErrors)[0];
+      showToast(firstErrorMessage, 'error');
       return;
     }
 
@@ -79,7 +233,7 @@ export default function AddCustomer() {
       showToast('Customer created successfully', 'success');
       navigate(`/customers/${res.data._id}`);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to register customer', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to register customer', 'error');
     } finally {
       setLoading(false);
     }
@@ -98,7 +252,7 @@ export default function AddCustomer() {
         <h2 className="text-xl font-bold tracking-tight text-slate-900">Add New Customer</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
         {/* Section 1: Personal Information */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
@@ -112,25 +266,36 @@ export default function AddCustomer() {
               name="fullName"
               value={formData.fullName}
               onChange={handleChange}
-              placeholder="e.g. Ranjith Kumar"
+              onBlur={handleBlur}
+              placeholder="e.g. Ranjith Kumar (letters only)"
               required
+              error={errors.fullName}
+              helperText="Letters and spaces only"
             />
 
             <Input
               label="Mobile Number"
               name="phone"
+              type="tel"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="e.g. 9876543210"
+              onBlur={handleBlur}
+              placeholder="e.g. 9876543210 (10 digits)"
+              maxLength={10}
               required
+              error={errors.phone}
+              helperText="Exactly 10 digits"
             />
 
             <Input
               label="Date of Birth"
               name="dateOfBirth"
               type="date"
+              max={todayDate}
               value={formData.dateOfBirth}
               onChange={handleChange}
+              onBlur={handleBlur}
+              error={errors.dateOfBirth}
             />
 
             <div>
@@ -154,7 +319,10 @@ export default function AddCustomer() {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="ranjith@example.com"
+                onBlur={handleBlur}
+                placeholder="e.g. ranjith@example.com"
+                error={errors.email}
+                helperText="Valid email format"
               />
             </div>
           </div>
@@ -174,6 +342,7 @@ export default function AddCustomer() {
                 name="address.addressLine"
                 value={formData.address.addressLine}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 placeholder="Door No, Street Name, Landmark"
               />
             </div>
@@ -183,7 +352,9 @@ export default function AddCustomer() {
               name="address.city"
               value={formData.address.city}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Chennai"
+              error={errors['address.city']}
             />
 
             <Input
@@ -191,15 +362,21 @@ export default function AddCustomer() {
               name="address.state"
               value={formData.address.state}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Tamil Nadu"
+              error={errors['address.state']}
             />
 
             <Input
               label="Pincode"
               name="address.pincode"
+              type="text"
+              maxLength={6}
               value={formData.address.pincode}
               onChange={handleChange}
-              placeholder="600001"
+              onBlur={handleBlur}
+              placeholder="600001 (6 digits)"
+              error={errors['address.pincode']}
             />
           </div>
         </div>
@@ -217,10 +394,14 @@ export default function AddCustomer() {
               <select
                 name="identification.idType"
                 value={formData.identification.idType}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  // Clear idNumber errors when switching ID type
+                  setErrors((prev) => ({ ...prev, 'identification.idNumber': null }));
+                }}
                 className="w-full rounded-lg border border-slate-300 py-2 px-3 text-xs bg-white focus:outline-none focus:border-emerald-500"
               >
-                <option value="Aadhaar">Aadhaar Card</option>
+                <option value="Aadhaar">Aadhaar Card (12 Digits)</option>
                 <option value="PAN">PAN Card</option>
                 <option value="Voter ID">Voter ID</option>
                 <option value="Driving License">Driving License</option>
@@ -229,11 +410,15 @@ export default function AddCustomer() {
             </div>
 
             <Input
-              label="ID Number"
+              label={formData.identification.idType === 'Aadhaar' ? 'Aadhaar Number (12 Digits)' : 'ID Number'}
               name="identification.idNumber"
               value={formData.identification.idNumber}
               onChange={handleChange}
-              placeholder="XXXX-XXXX-XXXX"
+              onBlur={handleBlur}
+              placeholder={formData.identification.idType === 'Aadhaar' ? '123456789012' : 'Enter ID number'}
+              maxLength={formData.identification.idType === 'Aadhaar' ? 12 : 20}
+              error={errors['identification.idNumber']}
+              helperText={formData.identification.idType === 'Aadhaar' ? 'Numbers only, exactly 12 digits' : ''}
             />
 
             <Input
@@ -241,7 +426,11 @@ export default function AddCustomer() {
               name="identification.panNumber"
               value={formData.identification.panNumber}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="ABCDE1234F"
+              maxLength={10}
+              error={errors['identification.panNumber']}
+              helperText="10-digit PAN format"
             />
           </div>
         </div>
@@ -259,7 +448,9 @@ export default function AddCustomer() {
               name="employment.occupation"
               value={formData.employment.occupation}
               onChange={handleChange}
-              placeholder="e.g. Software Engineer / Merchant"
+              onBlur={handleBlur}
+              placeholder="e.g. Software Engineer / Merchant (letters only)"
+              error={errors['employment.occupation']}
             />
 
             <div>
@@ -287,11 +478,13 @@ export default function AddCustomer() {
 
             <Input
               label="Monthly Income (₹)"
-              type="number"
+              type="text"
               name="employment.monthlyIncome"
               value={formData.employment.monthlyIncome}
               onChange={handleChange}
-              placeholder="50000"
+              onBlur={handleBlur}
+              placeholder="e.g. 50000 (numbers only)"
+              error={errors['employment.monthlyIncome']}
             />
           </div>
         </div>
@@ -309,23 +502,41 @@ export default function AddCustomer() {
               name="referenceContact.name"
               value={formData.referenceContact.name}
               onChange={handleChange}
-              placeholder="Suresh Kumar"
+              onBlur={handleBlur}
+              placeholder="e.g. Suresh Kumar (letters only)"
+              error={errors['referenceContact.name']}
             />
 
-            <Input
-              label="Relationship"
-              name="referenceContact.relationship"
-              value={formData.referenceContact.relationship}
-              onChange={handleChange}
-              placeholder="Brother / Friend"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Relationship</label>
+              <select
+                name="referenceContact.relationship"
+                value={formData.referenceContact.relationship}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-slate-300 py-2 px-3 text-xs bg-white focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Friend">Friend</option>
+                <option value="Brother">Brother</option>
+                <option value="Sister">Sister</option>
+                <option value="Father">Father</option>
+                <option value="Mother">Mother</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Colleague">Colleague</option>
+                <option value="Neighbor">Neighbor</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
             <Input
               label="Reference Phone"
               name="referenceContact.phone"
+              type="tel"
               value={formData.referenceContact.phone}
               onChange={handleChange}
-              placeholder="9876543211"
+              onBlur={handleBlur}
+              placeholder="e.g. 9876543211 (10 digits)"
+              maxLength={10}
+              error={errors['referenceContact.phone']}
             />
           </div>
         </div>

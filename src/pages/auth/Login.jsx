@@ -12,20 +12,38 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const [errors, setErrors] = useState({});
+
   const { login } = useAuth();
   const { showToast } = useApp();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      showToast('Please enter both email and password', 'error');
+    const errs = {};
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      errs.email = 'Email or username is required';
+    } else if (cleanEmail.includes('@') && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+      errs.email = 'Please enter a valid email address';
+    }
+
+    if (!password) {
+      errs.password = 'Password is required';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      showToast(Object.values(errs)[0], 'error');
       return;
     }
 
+    setErrors({});
+
     try {
       setLoading(true);
-      await login(email, password);
+      await login(cleanEmail, password);
       showToast('Welcome back!', 'success');
       navigate('/dashboard');
     } catch (err) {
@@ -80,7 +98,7 @@ export default function Login() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Email / Username
@@ -93,11 +111,19 @@ export default function Login() {
                 type="text"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
+                }}
                 placeholder="admin@finance.com or admin"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-900 text-xs"
+                className={`w-full pl-9 pr-3 py-2.5 rounded-lg border text-xs text-slate-900 focus:outline-none ${
+                  errors.email
+                    ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                    : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+                }`}
               />
             </div>
+            {errors.email && <p className="mt-1 text-xs text-rose-500">{errors.email}</p>}
           </div>
 
           <div>
@@ -112,9 +138,16 @@ export default function Login() {
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
+                }}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-900 text-xs"
+                className={`w-full pl-9 pr-10 py-2.5 rounded-lg border text-xs text-slate-900 focus:outline-none ${
+                  errors.password
+                    ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                    : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+                }`}
               />
               <button
                 type="button"
@@ -124,6 +157,7 @@ export default function Login() {
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+            {errors.password && <p className="mt-1 text-xs text-rose-500">{errors.password}</p>}
           </div>
 
           <div className="flex items-center justify-between text-xs pt-1">

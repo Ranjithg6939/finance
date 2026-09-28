@@ -7,6 +7,13 @@ import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import LoanCalculation from '../../components/loans/LoanCalculation';
 import { Search, UserCheck, Calculator, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import {
+  filterAmount,
+  filterDigitsOnly,
+  validateAmount,
+  validateInterestRate,
+  validateDuration,
+} from '../../utils/validation';
 
 export default function CreateLoan() {
   const navigate = useNavigate();
@@ -102,15 +109,84 @@ export default function CreateLoan() {
     }
   };
 
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'principalAmount':
+        return validateAmount(value, 'Loan Amount', 1000, 10000000);
+      case 'interestRate':
+        return validateInterestRate(value);
+      case 'durationValue':
+        return validateDuration(value);
+      case 'startDate':
+        return value ? null : 'Start date is required';
+      default:
+        return null;
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let sanitizedValue = value;
+
+    if (name === 'principalAmount') {
+      // Numbers and decimals only
+      sanitizedValue = filterAmount(value, 2);
+    } else if (name === 'interestRate') {
+      // Numbers and decimals only
+      sanitizedValue = filterAmount(value, 2);
+    } else if (name === 'durationValue') {
+      // Digits only
+      sanitizedValue = filterDigitsOnly(value, 3);
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
+
+    if (touched[name]) {
+      const err = validateField(name, sanitizedValue);
+      setErrors((prev) => ({ ...prev, [name]: err }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const err = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: err }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedCustomer) {
       showToast('Please select a customer for this loan', 'error');
+      return;
+    }
+
+    setTouched({
+      principalAmount: true,
+      interestRate: true,
+      durationValue: true,
+      startDate: true,
+    });
+
+    const newErrors = {
+      principalAmount: validateField('principalAmount', formData.principalAmount),
+      interestRate: validateField('interestRate', formData.interestRate),
+      durationValue: validateField('durationValue', formData.durationValue),
+      startDate: validateField('startDate', formData.startDate),
+    };
+
+    const activeErrors = {};
+    Object.keys(newErrors).forEach((k) => {
+      if (newErrors[k]) activeErrors[k] = newErrors[k];
+    });
+
+    setErrors(activeErrors);
+
+    if (Object.keys(activeErrors).length > 0) {
+      showToast(Object.values(activeErrors)[0], 'error');
       return;
     }
 
@@ -133,7 +209,7 @@ export default function CreateLoan() {
       showToast('Loan approved and disbursed successfully!', 'success');
       navigate(`/loans/${res.data._id}`);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to disburse loan', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to disburse loan', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -229,21 +305,30 @@ export default function CreateLoan() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Loan Amount (Principal ₹) *"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 name="principalAmount"
                 value={formData.principalAmount}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="e.g. 100000 (numbers only)"
                 required
+                error={errors.principalAmount}
+                helperText="Minimum ₹1,000"
               />
 
               <Input
                 label="Interest Rate (%) *"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 name="interestRate"
                 value={formData.interestRate}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="e.g. 2.0 (percentage)"
                 required
+                error={errors.interestRate}
+                helperText="Between 0.01% and 100%"
               />
 
               <div>
@@ -279,11 +364,16 @@ export default function CreateLoan() {
               <div className="flex gap-2">
                 <Input
                   label="Duration *"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="durationValue"
                   value={formData.durationValue}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  placeholder="e.g. 12"
                   required
+                  error={errors.durationValue}
+                  helperText="Positive integer"
                 />
                 <div className="w-32">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unit</label>

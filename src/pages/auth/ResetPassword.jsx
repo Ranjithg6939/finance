@@ -8,25 +8,45 @@ import Button from '../../components/common/Button';
 export default function ResetPassword() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { showToast } = useApp();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      return;
+    const errs = {};
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      errs.email = 'Registered email is required';
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+      errs.email = 'Please enter a valid email address';
     }
-    if (password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
+
+    if (!password) {
+      errs.password = 'New password is required';
+    } else if (password.length < 6) {
+      errs.password = 'Password must be at least 6 characters';
+    }
+
+    if (!confirmPassword) {
+      errs.confirmPassword = 'Confirm password is required';
+    } else if (password !== confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      showToast(Object.values(errs)[0], 'error');
       return;
     }
 
+    setErrors({});
+
     try {
       setLoading(true);
-      await authService.resetPassword({ email, password });
+      await authService.resetPassword({ email: cleanEmail, password });
       showToast('Password updated successfully. Please login.', 'success');
       navigate('/login');
     } catch (err) {
@@ -49,17 +69,25 @@ export default function ResetPassword() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Registered Email</label>
             <input
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
+              }}
               placeholder="name@company.com"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 text-xs"
+              className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none ${
+                errors.email
+                  ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                  : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+              }`}
             />
+            {errors.email && <p className="mt-1 text-xs text-rose-500">{errors.email}</p>}
           </div>
 
           <div>
@@ -68,10 +96,18 @@ export default function ResetPassword() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
+              }}
               placeholder="••••••••"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 text-xs"
+              className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none ${
+                errors.password
+                  ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                  : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+              }`}
             />
+            {errors.password && <p className="mt-1 text-xs text-rose-500">{errors.password}</p>}
           </div>
 
           <div>
@@ -80,10 +116,18 @@ export default function ResetPassword() {
               type="password"
               required
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: null }));
+              }}
               placeholder="••••••••"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 text-xs"
+              className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none ${
+                errors.confirmPassword
+                  ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                  : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+              }`}
             />
+            {errors.confirmPassword && <p className="mt-1 text-xs text-rose-500">{errors.confirmPassword}</p>}
           </div>
 
           <Button type="submit" loading={loading} className="w-full">

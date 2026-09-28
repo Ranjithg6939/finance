@@ -7,15 +7,30 @@ import Button from '../../components/common/Button';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const { showToast } = useApp();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const err = !email.trim()
+      ? 'Email address is required'
+      : !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim())
+      ? 'Please enter a valid email address (e.g. name@example.com)'
+      : null;
+
+    if (err) {
+      setEmailError(err);
+      showToast(err, 'error');
+      return;
+    }
+
+    setEmailError(null);
+
     try {
       setLoading(true);
-      await authService.forgotPassword(email);
+      await authService.forgotPassword(email.trim());
       setSubmitted(true);
       showToast('Reset link dispatched!', 'success');
     } catch (err) {
@@ -49,17 +64,25 @@ export default function ForgotPassword() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Address</label>
               <input
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError(null);
+                }}
                 placeholder="name@company.com"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-500 text-xs"
+                className={`w-full px-3 py-2 rounded-lg border text-xs focus:outline-none ${
+                  emailError
+                    ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                    : 'border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+                }`}
               />
+              {emailError && <p className="mt-1 text-xs text-rose-500">{emailError}</p>}
             </div>
             <Button type="submit" loading={loading} className="w-full">
               Send Reset Link

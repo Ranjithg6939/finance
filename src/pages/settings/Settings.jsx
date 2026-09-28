@@ -10,13 +10,40 @@ import {
   KeyRound,
   CheckCircle2,
   Laptop,
+  Database,
+  RefreshCw,
+  HardDrive,
 } from 'lucide-react';
+import { localStorageDb } from '../../services/localStorageDb';
 
 export default function Settings() {
   const { user } = useAuth();
   const { showToast } = useApp();
 
   const [activeTab, setActiveTab] = useState('profile');
+  const [storageStats, setStorageStats] = useState(() => {
+    try {
+      const c = localStorageDb.getCustomers().count;
+      const l = localStorageDb.getLoans().count;
+      const p = localStorageDb.getPayments().count;
+      const d = localStorageDb.getDocuments().count;
+      return { customers: c, loans: l, payments: p, documents: d };
+    } catch (e) {
+      return { customers: 0, loans: 0, payments: 0, documents: 0 };
+    }
+  });
+
+  const handleResetData = () => {
+    if (window.confirm('Reset all customers, loans, and payments to default demo records? Your custom changes will be reset.')) {
+      localStorageDb.resetAll();
+      const c = localStorageDb.getCustomers().count;
+      const l = localStorageDb.getLoans().count;
+      const p = localStorageDb.getPayments().count;
+      const d = localStorageDb.getDocuments().count;
+      setStorageStats({ customers: c, loans: l, payments: p, documents: d });
+      showToast('Database reset to clean demo records', 'success');
+    }
+  };
 
   // Application settings state
   const [appSettings, setAppSettings] = useState({
@@ -32,6 +59,7 @@ export default function Settings() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordErrors, setPasswordErrors] = useState({});
 
   const handleSaveApp = (e) => {
     e.preventDefault();
@@ -40,10 +68,28 @@ export default function Settings() {
 
   const handlePasswordUpdate = (e) => {
     e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast('Passwords do not match', 'error');
+    const errs = {};
+    if (!passwordData.currentPassword) {
+      errs.currentPassword = 'Current password is required';
+    }
+    if (!passwordData.newPassword) {
+      errs.newPassword = 'New password is required';
+    } else if (passwordData.newPassword.length < 6) {
+      errs.newPassword = 'Password must be at least 6 characters';
+    }
+    if (!passwordData.confirmPassword) {
+      errs.confirmPassword = 'Confirm password is required';
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setPasswordErrors(errs);
+      showToast(Object.values(errs)[0], 'error');
       return;
     }
+
+    setPasswordErrors({});
     showToast('Password updated successfully', 'success');
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
   };
@@ -63,6 +109,7 @@ export default function Settings() {
             { id: 'profile', label: 'Profile', icon: User },
             { id: 'application', label: 'Application', icon: Sliders },
             { id: 'security', label: 'Security', icon: Shield },
+            { id: 'storage', label: 'Local Storage', icon: Database },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -192,24 +239,37 @@ export default function Settings() {
                 label="Current Password"
                 type="password"
                 value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                onChange={(e) => {
+                  setPasswordData({ ...passwordData, currentPassword: e.target.value });
+                  if (passwordErrors.currentPassword) setPasswordErrors((prev) => ({ ...prev, currentPassword: null }));
+                }}
                 required
+                error={passwordErrors.currentPassword}
               />
 
               <Input
                 label="New Password"
                 type="password"
                 value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                onChange={(e) => {
+                  setPasswordData({ ...passwordData, newPassword: e.target.value });
+                  if (passwordErrors.newPassword) setPasswordErrors((prev) => ({ ...prev, newPassword: null }));
+                }}
                 required
+                error={passwordErrors.newPassword}
+                helperText="Minimum 6 characters"
               />
 
               <Input
                 label="Confirm Password"
                 type="password"
                 value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                onChange={(e) => {
+                  setPasswordData({ ...passwordData, confirmPassword: e.target.value });
+                  if (passwordErrors.confirmPassword) setPasswordErrors((prev) => ({ ...prev, confirmPassword: null }));
+                }}
                 required
+                error={passwordErrors.confirmPassword}
               />
             </div>
 
@@ -238,6 +298,66 @@ export default function Settings() {
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                 Active Now
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Local Storage */}
+      {activeTab === 'storage' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <HardDrive className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Local Browser Storage (Offline Engine)</h3>
+                <p className="text-xs text-slate-500">All customer registrations, loans, and payments persist in your browser's localStorage</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+              Active & Saved
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase">Customers</span>
+              <p className="text-xl font-bold text-slate-900 mt-1">{storageStats.customers}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Key: finveda_customers</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+              <span className="text-[11px] font-semibold text-blue-600 uppercase">Loans</span>
+              <p className="text-xl font-bold text-blue-700 mt-1">{storageStats.loans}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Key: finveda_loans</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+              <span className="text-[11px] font-semibold text-emerald-600 uppercase">Payments</span>
+              <p className="text-xl font-bold text-emerald-700 mt-1">{storageStats.payments}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Key: finveda_payments</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+              <span className="text-[11px] font-semibold text-amber-600 uppercase">Documents</span>
+              <p className="text-xl font-bold text-amber-700 mt-1">{storageStats.documents}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Key: finveda_documents</p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 text-xs space-y-3">
+            <div className="flex items-center gap-2 font-bold text-amber-900">
+              <Database className="w-4 h-4 text-amber-600" />
+              <span>How your data is stored</span>
+            </div>
+            <p className="text-slate-600 leading-relaxed">
+              When adding new customers, creating loans, or recording payments, all records are immediately saved to your browser's persistent <strong>localStorage</strong>. Your changes will remain even if you refresh or reopen your browser.
+            </p>
+            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between">
+              <span className="text-slate-500 text-[11px]">Need to reset to default sample data?</span>
+              <Button size="sm" variant="secondary" onClick={handleResetData} className="text-rose-600 hover:text-rose-700 border-rose-200">
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Reset Demo Records
+              </Button>
             </div>
           </div>
         </div>

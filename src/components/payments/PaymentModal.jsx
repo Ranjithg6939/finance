@@ -5,6 +5,11 @@ import Button from '../common/Button';
 import { paymentService } from '../../services/paymentService';
 import { formatCurrency } from '../../utils/currency';
 import { useApp } from '../../context/AppContext';
+import {
+  filterAmount,
+  filterAlphanumeric,
+  validateAmount,
+} from '../../utils/validation';
 
 export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }) {
   const { showToast } = useApp();
@@ -16,6 +21,7 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
   const [transactionReference, setTransactionReference] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (loan) {
@@ -26,14 +32,16 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
       setPaymentMethod('cash');
       setTransactionReference('');
       setNotes('');
+      setErrors({});
     }
   }, [loan, isOpen]);
 
   // Handle amount change and auto estimate principal vs interest split
   const handleAmountChange = (e) => {
-    const val = e.target.value;
-    setAmount(val);
-    const num = parseFloat(val) || 0;
+    const raw = e.target.value;
+    const clean = filterAmount(raw, 2);
+    setAmount(clean);
+    const num = parseFloat(clean) || 0;
 
     if (loan && loan.totalPayable > 0) {
       const interestRatio = (loan.totalInterest || 0) / loan.totalPayable;
@@ -42,6 +50,22 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
       setInterestAmount(estimatedInterest > 0 ? estimatedInterest.toString() : '');
       setPrincipalAmount(estimatedPrincipal > 0 ? estimatedPrincipal.toString() : '');
     }
+
+    if (errors.amount) {
+      setErrors((prev) => ({ ...prev, amount: null }));
+    }
+  };
+
+  const handlePrincipalChange = (e) => {
+    setPrincipalAmount(filterAmount(e.target.value, 2));
+  };
+
+  const handleInterestChange = (e) => {
+    setInterestAmount(filterAmount(e.target.value, 2));
+  };
+
+  const handleReferenceChange = (e) => {
+    setTransactionReference(filterAlphanumeric(e.target.value, 30));
   };
 
   if (!loan) return null;
@@ -52,8 +76,10 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || payAmount <= 0) {
-      showToast('Please enter a valid payment amount', 'error');
+    const amountError = validateAmount(amount, 'Payment Amount', 1, prevOutstanding);
+    if (amountError) {
+      setErrors({ amount: amountError });
+      showToast(amountError, 'error');
       return;
     }
 
@@ -75,7 +101,7 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
       if (onPaymentSuccess) onPaymentSuccess(res.data);
       onClose();
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to record payment', 'error');
+      showToast(err.response?.data?.message || err.message || 'Failed to record payment', 'error');
     } finally {
       setLoading(false);
     }
@@ -83,7 +109,7 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Record Payment">
-      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
         {/* Loan & Customer summary */}
         <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs">
           <div>
@@ -110,31 +136,36 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
 
           <Input
             label="Payment Amount (₹)"
-            type="number"
+            type="text"
+            inputMode="decimal"
             name="amount"
             value={amount}
             onChange={handleAmountChange}
             placeholder="e.g. 10000"
             required
+            error={errors.amount}
+            helperText={`Max outstanding: ${formatCurrency(prevOutstanding)}`}
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
             label="Principal Component (₹)"
-            type="number"
+            type="text"
+            inputMode="decimal"
             name="principalAmount"
             value={principalAmount}
-            onChange={(e) => setPrincipalAmount(e.target.value)}
+            onChange={handlePrincipalChange}
             placeholder="Auto-calculated"
           />
 
           <Input
             label="Interest Component (₹)"
-            type="number"
+            type="text"
+            inputMode="decimal"
             name="interestAmount"
             value={interestAmount}
-            onChange={(e) => setInterestAmount(e.target.value)}
+            onChange={handleInterestChange}
             placeholder="Auto-calculated"
           />
         </div>
@@ -161,7 +192,8 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
             label="Transaction Reference"
             name="transactionReference"
             value={transactionReference}
-            onChange={(e) => setTransactionReference(e.target.value)}
+            onChange={handleReferenceChange}
+            maxLength={30}
             placeholder="e.g. UPI / Cheque / UTR #"
           />
         </div>

@@ -3,15 +3,41 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-500 selection:text-white;
+    max-width: 100%;
+    overflow-x: hidden;
+    touch-action: manipulation;
   }
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+/* Utilities for responsive tables & touch scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for clean horizontal tabs */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f5f9;

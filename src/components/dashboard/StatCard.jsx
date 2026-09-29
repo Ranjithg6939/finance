@@ -10,18 +10,18 @@ export default function StatCard({ title, value, subtitle, icon: Icon, color = '
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
+    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">{title}</p>
         {Icon && (
-          <div className={`p-2.5 rounded-xl border ${colorMap[color] || colorMap.emerald}`}>
-            <Icon className="w-5 h-5" />
+          <div className={`p-2 sm:p-2.5 rounded-xl border shrink-0 ${colorMap[color] || colorMap.emerald}`}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         )}
       </div>
-      <div className="mt-3">
-        <h3 className="text-2xl font-bold tracking-tight text-slate-900">{value}</h3>
-        {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
+      <div className="mt-2.5 sm:mt-3 min-w-0">
+        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 break-words">{value}</h3>
+        {subtitle && <p className="mt-1 text-xs text-slate-500 truncate">{subtitle}</p>}
       </div>
     </div>
   );

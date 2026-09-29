@@ -273,7 +273,7 @@ export default function AddCustomer() {
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         {/* Section 1: Personal Information */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <User className="w-4 h-4 text-emerald-600" />
             <h3 className="text-sm font-bold text-slate-800">Personal Information</h3>
@@ -373,7 +373,7 @@ export default function AddCustomer() {
         </div>
 
         {/* Section 2: Address */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <h3 className="text-sm font-bold text-slate-800">Residential Address</h3>
@@ -426,7 +426,7 @@ export default function AddCustomer() {
         </div>
 
         {/* Section 3: Identification */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <h3 className="text-sm font-bold text-slate-800">Identification & KYC</h3>
@@ -480,7 +480,7 @@ export default function AddCustomer() {
         </div>
 
         {/* Section 4: Employment Details */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <Briefcase className="w-4 h-4 text-emerald-600" />
             <h3 className="text-sm font-bold text-slate-800">Employment & Financials</h3>
@@ -534,7 +534,7 @@ export default function AddCustomer() {
         </div>
 
         {/* Section 5: Reference Contact */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <UserCheck className="w-4 h-4 text-emerald-600" />
             <h3 className="text-sm font-bold text-slate-800">Reference Contact</h3>
@@ -586,11 +586,11 @@ export default function AddCustomer() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button variant="secondary" onClick={() => navigate('/customers')} disabled={loading}>
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
+          <Button variant="secondary" onClick={() => navigate('/customers')} disabled={loading} className="w-full sm:w-auto justify-center">
             Cancel
           </Button>
-          <Button type="submit" loading={loading} className="px-6">
+          <Button type="submit" loading={loading} className="w-full sm:w-auto justify-center px-6">
             Save Customer
           </Button>
         </div>

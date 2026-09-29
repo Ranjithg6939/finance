@@ -103,8 +103,8 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex space-x-6">
+      <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
+        <nav className="flex space-x-4 sm:space-x-6 whitespace-nowrap min-w-max pb-1">
           {[
             { id: 'profile', label: 'Profile', icon: User },
             { id: 'application', label: 'Application', icon: Sliders },
@@ -116,7 +116,7 @@ export default function Settings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors ${
+                className={`py-2.5 sm:py-3 px-1 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-emerald-600 text-emerald-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -132,7 +132,7 @@ export default function Settings() {
 
       {/* Tab: Profile */}
       {activeTab === 'profile' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
             <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl font-bold">
               {user?.name?.charAt(0).toUpperCase() || 'A'}
@@ -157,7 +157,7 @@ export default function Settings() {
 
       {/* Tab: Application */}
       {activeTab === 'application' && (
-        <form onSubmit={handleSaveApp} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <form onSubmit={handleSaveApp} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-5">
           <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100">
             Lending Defaults & Formatting
           </h3>
@@ -219,7 +219,7 @@ export default function Settings() {
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" className="w-full sm:w-auto">Save Changes</Button>
           </div>
         </form>
       )}
@@ -228,7 +228,7 @@ export default function Settings() {
       {activeTab === 'security' && (
         <div className="space-y-6">
           {/* Change Password */}
-          <form onSubmit={handlePasswordUpdate} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <form onSubmit={handlePasswordUpdate} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-emerald-600" />
               Change Password
@@ -274,28 +274,28 @@ export default function Settings() {
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button type="submit">Update Password</Button>
+              <Button type="submit" className="w-full sm:w-auto">Update Password</Button>
             </div>
           </form>
 
           {/* Active Sessions */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
               <Laptop className="w-4 h-4 text-emerald-600" />
               Active Sessions
             </h3>
 
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-50 text-slate-600">
+                <div className="p-2 rounded-xl bg-slate-50 text-slate-600 shrink-0">
                   <Laptop className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="font-bold text-slate-900">Chrome on Windows (Current Session)</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 truncate">Chrome on Windows (Current Session)</p>
                   <p className="text-[11px] text-slate-400">Current Device • Online</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
                 Active Now
               </span>
             </div>
@@ -305,10 +305,10 @@ export default function Settings() {
 
       {/* Tab: Local Storage */}
       {activeTab === 'storage' && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
                 <HardDrive className="w-5 h-5" />
               </div>
               <div>
@@ -316,7 +316,7 @@ export default function Settings() {
                 <p className="text-xs text-slate-500">All customer registrations, loans, and payments persist in your browser's localStorage</p>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
+            <span className="self-start sm:self-auto px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
               Active & Saved
             </span>
@@ -347,15 +347,15 @@ export default function Settings() {
 
           <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 text-xs space-y-3">
             <div className="flex items-center gap-2 font-bold text-amber-900">
-              <Database className="w-4 h-4 text-amber-600" />
+              <Database className="w-4 h-4 text-amber-600 shrink-0" />
               <span>How your data is stored</span>
             </div>
             <p className="text-slate-600 leading-relaxed">
               When adding new customers, creating loans, or recording payments, all records are immediately saved to your browser's persistent <strong>localStorage</strong>. Your changes will remain even if you refresh or reopen your browser.
             </p>
-            <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between">
+            <div className="pt-2 border-t border-amber-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
               <span className="text-slate-500 text-[11px]">Need to reset to default sample data?</span>
-              <Button size="sm" variant="secondary" onClick={handleResetData} className="text-rose-600 hover:text-rose-700 border-rose-200">
+              <Button size="sm" variant="secondary" onClick={handleResetData} className="w-full sm:w-auto text-rose-600 hover:text-rose-700 border-rose-200 justify-center">
                 <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Reset Demo Records
               </Button>
             </div>

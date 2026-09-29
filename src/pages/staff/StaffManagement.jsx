@@ -356,46 +356,48 @@ export default function StaffManagement() {
       </div>
 
       {/* Role Navigation Tabs */}
-      <div className="flex border-b border-slate-200 bg-white px-4 pt-2 rounded-t-xl gap-2">
-        <button
-          onClick={() => setRoleTab('all')}
-          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-            roleTab === 'all'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          All Staff ({staffList.length})
-        </button>
+      <div className="border-b border-slate-200 bg-white px-3 sm:px-4 pt-2 rounded-t-xl overflow-x-auto scrollbar-none">
+        <div className="flex gap-2 whitespace-nowrap min-w-max pb-1">
+          <button
+            onClick={() => setRoleTab('all')}
+            className={`px-3.5 sm:px-4 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+              roleTab === 'all'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            All Staff ({staffList.length})
+          </button>
 
-        <button
-          onClick={() => setRoleTab('staff')}
-          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-            roleTab === 'staff'
-              ? 'border-blue-600 text-blue-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <UserCheck className="w-3.5 h-3.5" />
-          Operational Staff ({roleTab === 'all' ? staffOnlyCount : staffList.length})
-        </button>
+          <button
+            onClick={() => setRoleTab('staff')}
+            className={`px-3.5 sm:px-4 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+              roleTab === 'staff'
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            Operational Staff ({roleTab === 'all' ? staffOnlyCount : staffList.length})
+          </button>
 
-        <button
-          onClick={() => setRoleTab('recovery_staff')}
-          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-            roleTab === 'recovery_staff'
-              ? 'border-amber-600 text-amber-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          Recovery Staff ({roleTab === 'all' ? recoveryOnlyCount : staffList.length})
-        </button>
+          <button
+            onClick={() => setRoleTab('recovery_staff')}
+            className={`px-3.5 sm:px-4 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+              roleTab === 'recovery_staff'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            Recovery Staff ({roleTab === 'all' ? recoveryOnlyCount : staffList.length})
+          </button>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}
-      <div className="bg-white rounded-b-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 -mt-6">
+      <div className="bg-white rounded-b-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -411,7 +413,7 @@ export default function StaffManagement() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none text-slate-700"
+            className="w-full md:w-auto px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none text-slate-700"
           >
             <option value="">All Statuses</option>
             <option value="active">Active Only</option>
@@ -424,24 +426,24 @@ export default function StaffManagement() {
       {loading ? (
         <Loader text="Loading staff records..." />
       ) : staffList.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center text-slate-500">
           <Users className="w-10 h-10 mx-auto text-slate-400 mb-2" />
           <p className="text-sm font-semibold text-slate-700">No members found</p>
           <p className="text-xs mt-1">Get started by creating your first team member.</p>
-          <div className="flex justify-center gap-3 mt-4">
-            <Button onClick={() => handleOpenAdd('staff')} size="sm">
+          <div className="flex flex-col sm:flex-row justify-center gap-2.5 sm:gap-3 mt-4">
+            <Button onClick={() => handleOpenAdd('staff')} size="sm" className="w-full sm:w-auto justify-center">
               <UserPlus className="w-3.5 h-3.5 mr-1" /> Add Staff
             </Button>
-            <Button onClick={() => handleOpenAdd('recovery_staff')} size="sm" className="bg-amber-600 hover:bg-amber-700">
+            <Button onClick={() => handleOpenAdd('recovery_staff')} size="sm" className="w-full sm:w-auto justify-center bg-amber-600 hover:bg-amber-700">
               <Shield className="w-3.5 h-3.5 mr-1" /> Add Recovery Staff
             </Button>
           </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs min-w-[780px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold whitespace-nowrap">
                 <tr>
                   <th className="px-5 py-3.5">User</th>
                   <th className="px-4 py-3.5">Mobile Number</th>
@@ -589,8 +591,8 @@ export default function StaffManagement() {
 
       {/* Add Staff / Recovery Staff Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -741,8 +743,8 @@ export default function StaffManagement() {
 
       {/* Edit Staff Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Edit User Profile</h3>
@@ -839,8 +841,8 @@ export default function StaffManagement() {
 
       {/* MANAGE PERMISSIONS MODAL (Admin Only) */}
       {isPermissionsModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -990,8 +992,8 @@ export default function StaffManagement() {
 
       {/* Confirmation Modal: Deactivate / Activate */}
       {isConfirmStatusModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -1030,8 +1032,8 @@ export default function StaffManagement() {
 
       {/* Confirmation Modal: Delete User */}
       {isConfirmDeleteModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -1065,8 +1067,8 @@ export default function StaffManagement() {
 
       {/* Reset Password Modal */}
       {isPasswordModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
               <button
@@ -1113,8 +1115,8 @@ export default function StaffManagement() {
 
       {/* Staff Details / Performance Modal */}
       {isDetailsOpen && selectedStaffDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-xl w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">User Performance & Portfolio</h3>

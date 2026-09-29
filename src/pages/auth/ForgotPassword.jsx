@@ -41,8 +41,8 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-3.5 sm:p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 sm:p-8 space-y-5 sm:space-y-6">
         <div className="flex flex-col items-center text-center">
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
             <Mail className="w-6 h-6" />

@@ -70,9 +70,9 @@ export default function PaymentSchedule({ schedule = [] }) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full text-left text-xs text-slate-600">
-        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+    <div className="overflow-x-auto w-full max-w-full rounded-xl border border-slate-200 touch-scroll">
+      <table className="w-full text-left text-xs text-slate-600 min-w-[720px]">
+        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
           <tr>
             <th className="px-3.5 py-2.5">#</th>
             <th className="px-3.5 py-2.5">Due Date</th>

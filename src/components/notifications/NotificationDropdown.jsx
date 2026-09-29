@@ -69,7 +69,7 @@ export default function NotificationDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-auto mt-2 w-auto sm:w-80 md:w-96 max-w-[calc(100vw-1.5rem)] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
             <h4 className="font-semibold text-slate-800 text-sm">Notifications</h4>
             {unreadCount > 0 && (

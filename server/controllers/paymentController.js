@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Payment from '../models/Payment.js';
 import Loan from '../models/Loan.js';
 import Customer from '../models/Customer.js';
@@ -131,9 +132,17 @@ export const paymentController = {
       }
 
       // Find loan
-      const loan = await Loan.findOne({
-        $or: [{ _id: loanIdInput }, { loanId: loanId || loanIdInput }],
-      }).populate('customer');
+      const targetLoanId = loanId || loanIdInput;
+      if (!targetLoanId) {
+        return res.status(400).json({ success: false, message: 'Loan ID is required' });
+      }
+
+      const isObjectId = mongoose.Types.ObjectId.isValid(targetLoanId);
+      const loan = await Loan.findOne(
+        isObjectId
+          ? { $or: [{ _id: targetLoanId }, { loanId: targetLoanId }] }
+          : { loanId: targetLoanId }
+      ).populate('customer');
 
       if (!loan) {
         return res.status(404).json({ success: false, message: 'Associated loan record not found' });
@@ -310,6 +319,55 @@ export const paymentController = {
         success: false,
         message: 'Failed to cancel payment',
       });
+    }
+  },
+
+  // GET /api/payments/:id/receipt
+  getReceipt: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const isObjectId = mongoose.Types.ObjectId.isValid(id);
+      const payment = await Payment.findOne(
+        isObjectId ? { $or: [{ _id: id }, { paymentId: id }, { receiptNumber: id }] } : { $or: [{ paymentId: id }, { receiptNumber: id }] }
+      )
+        .populate('loan', 'loanId principalAmount outstandingAmount')
+        .populate('customer', 'fullName customerId phone')
+        .populate('collectedBy', 'name email');
+
+      if (!payment) {
+        return res.status(404).json({ success: false, message: 'Receipt record not found' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          receiptNumber: payment.receiptNumber || `REC-${payment.paymentId}`,
+          paymentId: payment.paymentId,
+          date: payment.paymentDate,
+          paymentDate: payment.paymentDate,
+          customerName: payment.customer?.fullName || payment.customerName,
+          customerPhone: payment.customerPhone || payment.customer?.phone,
+          customer: {
+            name: payment.customer?.fullName || payment.customerName,
+            id: payment.customer?.customerId,
+            phone: payment.customerPhone || payment.customer?.phone,
+          },
+          loanId: payment.loan?.loanId || 'N/A',
+          loan: {
+            loanId: payment.loan?.loanId,
+            principalAmount: payment.loan?.principalAmount,
+          },
+          paymentAmount: payment.amount,
+          amount: payment.amount,
+          previousOutstanding: payment.previousOutstanding,
+          currentOutstanding: payment.currentOutstanding,
+          paymentMethod: payment.paymentMethod,
+          collectedBy: payment.collectedByName || payment.recoveryStaffName || payment.collectedBy?.name || 'Staff',
+          notes: payment.notes,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Failed to fetch payment receipt' });
     }
   },
 };

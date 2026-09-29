@@ -90,9 +90,9 @@ export default function ActivityLogs() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs min-w-[640px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold whitespace-nowrap">
                 <tr>
                   <th className="px-5 py-3.5">Timestamp</th>
                   <th className="px-4 py-3.5">User & Role</th>

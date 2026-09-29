@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.get('/', requireAuth, paymentController.getAllPayments);
 router.get('/:id', requireAuth, paymentController.getPaymentById);
+router.get('/:id/receipt', requireAuth, paymentController.getReceipt);
 router.post('/', requireAuth, paymentController.createPayment);
 
 // Admin-only operations

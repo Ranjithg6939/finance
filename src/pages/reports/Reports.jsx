@@ -111,19 +111,19 @@ export default function Reports() {
           <p className="text-xs text-slate-500 mt-0.5">Generate financial statements and portfolio reports</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={exportToCSV}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button size="sm" variant="secondary" onClick={exportToCSV} className="flex-1 sm:flex-none justify-center">
             <Download className="w-3.5 h-3.5 mr-1.5" /> Export CSV
           </Button>
-          <Button size="sm" variant="secondary" onClick={handlePrint}>
+          <Button size="sm" variant="secondary" onClick={handlePrint} className="flex-1 sm:flex-none justify-center">
             <Printer className="w-3.5 h-3.5 mr-1.5" /> Print
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex space-x-6">
+      <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
+        <nav className="flex space-x-4 sm:space-x-6 whitespace-nowrap min-w-max pb-1">
           {[
             { id: 'loans', label: 'Loan Report' },
             { id: 'payments', label: 'Payment Report' },
@@ -133,7 +133,7 @@ export default function Reports() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-1 border-b-2 text-xs font-semibold transition-colors ${
+              className={`py-2.5 sm:py-3 px-1 border-b-2 text-xs font-semibold transition-colors ${
                 activeTab === tab.id
                   ? 'border-emerald-600 text-emerald-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -146,8 +146,8 @@ export default function Reports() {
       </div>
 
       {/* Filter Controls */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 text-slate-500">
             <Calendar className="w-3.5 h-3.5" />
             <span>From:</span>
@@ -186,36 +186,36 @@ export default function Reports() {
           )}
         </div>
 
-        <Button size="sm" onClick={fetchReport}>
+        <Button size="sm" onClick={fetchReport} className="w-full sm:w-auto justify-center">
           Generate Report
         </Button>
       </div>
 
       {/* Summary KPI Ribbon for Report */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
           {summary.totalPrincipalDisbursed !== undefined && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">Disbursed</span>
-              <p className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(summary.totalPrincipalDisbursed)}</p>
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase truncate block">Disbursed</span>
+              <p className="text-base sm:text-lg font-bold text-slate-900 mt-1 break-words">{formatCurrency(summary.totalPrincipalDisbursed)}</p>
             </div>
           )}
           {summary.totalCollected !== undefined && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-emerald-600 uppercase">Total Collected</span>
-              <p className="text-lg font-bold text-emerald-700 mt-1">{formatCurrency(summary.totalCollected)}</p>
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+              <span className="text-[11px] font-semibold text-emerald-600 uppercase truncate block">Total Collected</span>
+              <p className="text-base sm:text-lg font-bold text-emerald-700 mt-1 break-words">{formatCurrency(summary.totalCollected)}</p>
             </div>
           )}
           {summary.totalOutstanding !== undefined && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-rose-600 uppercase">Total Outstanding</span>
-              <p className="text-lg font-bold text-rose-700 mt-1">{formatCurrency(summary.totalOutstanding)}</p>
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+              <span className="text-[11px] font-semibold text-rose-600 uppercase truncate block">Total Outstanding</span>
+              <p className="text-base sm:text-lg font-bold text-rose-700 mt-1 break-words">{formatCurrency(summary.totalOutstanding)}</p>
             </div>
           )}
           {summary.totalInterestEarned !== undefined && (
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[11px] font-semibold text-amber-600 uppercase">Interest Income</span>
-              <p className="text-lg font-bold text-amber-700 mt-1">{formatCurrency(summary.totalInterestEarned)}</p>
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+              <span className="text-[11px] font-semibold text-amber-600 uppercase truncate block">Interest Income</span>
+              <p className="text-base sm:text-lg font-bold text-amber-700 mt-1 break-words">{formatCurrency(summary.totalInterestEarned)}</p>
             </div>
           )}
         </div>
@@ -225,14 +225,14 @@ export default function Reports() {
       {loading ? (
         <Loader text="Generating report data..." />
       ) : reportData.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center text-xs text-slate-400">
           No records match this report filter.
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[720px]">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
                 {activeTab === 'loans' && (
                   <tr>
                     <th className="px-4 py-3">Loan ID</th>

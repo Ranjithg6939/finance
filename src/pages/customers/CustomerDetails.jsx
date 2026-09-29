@@ -153,14 +153,14 @@ export default function CustomerDetails() {
       </button>
 
       {/* Customer Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-emerald-500/20">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 min-w-0">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl sm:text-2xl font-bold shadow-md shadow-emerald-500/20 shrink-0">
             {customer.fullName.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900">{customer.fullName}</h2>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 break-words">{customer.fullName}</h2>
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                   customer.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
@@ -176,14 +176,14 @@ export default function CustomerDetails() {
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-500 mt-1">
               <span className="font-mono text-slate-700 font-medium">ID: {customer.customerId}</span>
               <span className="flex items-center gap-1">
                 <Phone className="w-3.5 h-3.5" /> {maskString(customer.phone, 3)}
               </span>
               {customer.email && (
-                <span className="flex items-center gap-1">
-                  <Mail className="w-3.5 h-3.5" /> {customer.email}
+                <span className="flex items-center gap-1 truncate">
+                  <Mail className="w-3.5 h-3.5 shrink-0" /> {customer.email}
                 </span>
               )}
             </div>
@@ -191,14 +191,14 @@ export default function CustomerDetails() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
           {/* Admin Staff Assignment Button */}
           {isAdmin && (
             <Button
               size="sm"
               variant="secondary"
               onClick={handleOpenAssignModal}
-              className="flex items-center gap-1"
+              className="flex-1 sm:flex-none justify-center flex items-center gap-1"
             >
               <UserCheck className="w-3.5 h-3.5" /> Assign Staff
             </Button>
@@ -208,6 +208,7 @@ export default function CustomerDetails() {
             size="sm"
             variant="secondary"
             onClick={() => setIsDocModalOpen(true)}
+            className="flex-1 sm:flex-none justify-center"
           >
             <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Document
           </Button>
@@ -215,6 +216,7 @@ export default function CustomerDetails() {
           <Button
             size="sm"
             onClick={() => navigate(`${prefix}/loans/new?customer=${customer._id}`)}
+            className="flex-1 sm:flex-none justify-center"
           >
             <BadgePercent className="w-3.5 h-3.5 mr-1.5" /> Create Loan
           </Button>
@@ -233,8 +235,8 @@ export default function CustomerDetails() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="border-b border-slate-200">
-        <nav className="flex space-x-6">
+      <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
+        <nav className="flex space-x-4 sm:space-x-6 whitespace-nowrap min-w-max pb-1">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'active_loans', label: `Active Loans (${customer.activeLoans?.length || customer.loans?.filter(l => l.status === 'active')?.length || 0})` },
@@ -245,7 +247,7 @@ export default function CustomerDetails() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-1 border-b-2 text-xs font-semibold transition-colors ${
+              className={`py-2.5 sm:py-3 px-1 border-b-2 text-xs font-semibold transition-colors ${
                 activeTab === tab.id
                   ? 'border-emerald-600 text-emerald-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -260,8 +262,8 @@ export default function CustomerDetails() {
       {/* Tab Content: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Summary Metric Cards (Total Loan, Total Paid, Total Outstanding, Payment Count, Last Payment Date, Next Due Date) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-[11px] font-semibold text-slate-400 uppercase">Total Loan</span>
               <p className="text-lg font-bold text-slate-900 mt-1">{summary?.totalLoans || summary?.totalLoan || 0}</p>
@@ -429,9 +431,9 @@ export default function CustomerDetails() {
       {/* Payments Tab */}
       {activeTab === 'payments' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs min-w-[580px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold whitespace-nowrap">
                 <tr>
                   <th className="px-4 py-2.5">Receipt #</th>
                   <th className="px-4 py-2.5">Date</th>
@@ -505,16 +507,16 @@ export default function CustomerDetails() {
 
       {/* Assign Staff Modal (Admin Only) */}
       {isAssignModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Assign Staff Member</h3>
                 <p className="text-xs text-slate-500">For customer: {customer.fullName}</p>
               </div>
               <button
                 onClick={() => setIsAssignModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -540,16 +542,17 @@ export default function CustomerDetails() {
                 </p>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={() => setIsAssignModalOpen(false)}
+                  className="w-full sm:w-auto justify-center"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" disabled={assignSubmitting}>
+                <Button type="submit" size="sm" disabled={assignSubmitting} className="w-full sm:w-auto justify-center">
                   {assignSubmitting ? 'Saving...' : 'Save Assignment'}
                 </Button>
               </div>

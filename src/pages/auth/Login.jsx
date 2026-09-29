@@ -61,8 +61,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-3.5 sm:p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 sm:p-8 space-y-5 sm:space-y-6">
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-600/30 mb-3">
@@ -74,7 +74,7 @@ export default function Login() {
 
         {/* Demo Credentials Box */}
         <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="font-semibold text-emerald-800">Demo Login Accounts:</p>
             <div className="flex gap-1.5">
               <button
@@ -99,7 +99,7 @@ export default function Login() {
               </button>
             </div>
           </div>
-          <div className="space-y-0.5 text-[11px]">
+          <div className="space-y-1 text-[11px] break-all">
             <p>Admin: <code className="bg-white px-1.5 py-0.5 rounded font-mono">admin@finance.com</code> / <code className="bg-white px-1.5 py-0.5 rounded font-mono">password123</code></p>
             <p>Staff: <code className="bg-white px-1.5 py-0.5 rounded font-mono">staff@finance.com</code> / <code className="bg-white px-1.5 py-0.5 rounded font-mono">password123</code></p>
           </div>

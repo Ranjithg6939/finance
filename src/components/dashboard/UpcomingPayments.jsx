@@ -18,9 +18,9 @@ export default function UpcomingPayments({ payments = [], onRecordPayment }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-xs text-slate-600">
-        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+    <div className="overflow-x-auto w-full touch-scroll">
+      <table className="w-full text-left text-xs text-slate-600 min-w-[540px]">
+        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
           <tr>
             <th className="px-4 py-3">Customer</th>
             <th className="px-4 py-3">Loan ID</th>

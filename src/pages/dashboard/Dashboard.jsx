@@ -108,10 +108,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Top Banner / Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 break-words">
               {isAdmin
                 ? 'Administrator Executive Dashboard'
                 : isRecovery
@@ -119,7 +119,7 @@ export default function Dashboard() {
                 : 'Staff Operational Dashboard'}
             </h2>
             <span
-              className={`px-2.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
+              className={`shrink-0 px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider ${
                 isAdmin
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                   : isRecovery
@@ -130,7 +130,7 @@ export default function Dashboard() {
               {isAdmin ? 'Admin View' : isRecovery ? 'Recovery Suite' : 'Staff Operations'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1 break-words">
             {isAdmin
               ? 'Executive financial overview, company recovery KPIs, net margins, and staff performance'
               : isRecovery
@@ -139,18 +139,18 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
           {isRecovery ? (
             <>
               <Link
                 to="/recovery/customers"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm text-center"
               >
                 Assigned Borrowers
               </Link>
               <Link
                 to="/recovery/payments"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm text-center"
               >
                 + Collect Payment
               </Link>
@@ -159,13 +159,13 @@ export default function Dashboard() {
             <>
               <Link
                 to={`${prefix}/customers/new`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm text-center"
               >
                 + New Customer
               </Link>
               <Link
                 to={`${prefix}/loans/new`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm text-center"
               >
                 + Create Loan
               </Link>

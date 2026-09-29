@@ -13,7 +13,7 @@ export default function LoanCalculation({ calculation, loading = false }) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
       <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="flex items-center justify-between pb-4 border-b border-slate-700/80 mb-5">
@@ -26,7 +26,7 @@ export default function LoanCalculation({ calculation, loading = false }) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
         <div>
           <p className="text-slate-400">Loan Amount</p>
           <p className="text-lg font-bold text-white mt-0.5">
@@ -55,7 +55,7 @@ export default function LoanCalculation({ calculation, loading = false }) {
           </p>
         </div>
 
-        <div className="col-span-2 pt-3 border-t border-slate-700/80">
+        <div className="col-span-1 sm:col-span-2 pt-3 border-t border-slate-700/80">
           <div className="flex justify-between items-center text-xs mb-1">
             <span className="text-slate-300">Estimated Total Interest:</span>
             <span className="font-semibold text-amber-400">

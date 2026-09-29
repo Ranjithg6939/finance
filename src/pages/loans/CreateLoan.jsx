@@ -251,7 +251,7 @@ export default function CreateLoan() {
         {/* Left Form: Step 1 & Step 2 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Step 1: Customer Selection */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Step 1 — Customer</span>
               {selectedCustomer && (
@@ -262,10 +262,10 @@ export default function CreateLoan() {
             </div>
 
             {selectedCustomer ? (
-              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-bold text-emerald-950">{selectedCustomer.fullName}</h4>
-                  <p className="text-xs text-emerald-800 mt-0.5">
+                  <p className="text-xs text-emerald-800 mt-0.5 break-words">
                     Customer ID: <span className="font-mono">{selectedCustomer.customerId}</span> | Phone: {selectedCustomer.phone}
                   </p>
                 </div>
@@ -273,6 +273,7 @@ export default function CreateLoan() {
                   size="sm"
                   variant="secondary"
                   onClick={() => setSelectedCustomer(null)}
+                  className="w-full sm:w-auto justify-center"
                 >
                   Change Customer
                 </Button>
@@ -316,7 +317,7 @@ export default function CreateLoan() {
           </div>
 
           {/* Step 2: Loan Details */}
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4">
             <div className="pb-3 border-b border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Step 2 — Loan Details</span>
             </div>
@@ -454,11 +455,11 @@ export default function CreateLoan() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <Button variant="secondary" onClick={() => navigate('/loans/active')}>
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => navigate('/loans/active')} className="w-full sm:w-auto justify-center">
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting} disabled={!selectedCustomer}>
+              <Button type="submit" loading={submitting} disabled={!selectedCustomer} className="w-full sm:w-auto justify-center">
                 Disburse & Approve Loan
               </Button>
             </div>

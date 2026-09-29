@@ -68,20 +68,20 @@ export default function StaffPerformance() {
       </div>
 
       {/* Monthly Recovery Target Progress */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg shadow-emerald-700/20">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 sm:p-6 text-white shadow-lg shadow-emerald-700/20">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/20">
           <div>
             <div className="flex items-center gap-2 text-emerald-100 text-xs font-semibold uppercase tracking-wider">
               <Target className="w-4 h-4" /> Monthly Collection Target
             </div>
-            <h3 className="text-2xl font-bold mt-1 font-mono">
+            <h3 className="text-2xl font-bold mt-1 font-mono break-words">
               {formatCurrency(currentCollected)}{' '}
               <span className="text-sm font-normal text-emerald-100">
                 / {formatCurrency(monthlyTarget)} target
               </span>
             </h3>
           </div>
-          <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 text-center">
+          <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 text-center self-start md:self-auto">
             <span className="text-xs text-emerald-100">Achievement</span>
             <p className="text-xl font-bold font-mono">{targetPercent}%</p>
           </div>
@@ -103,7 +103,7 @@ export default function StaffPerformance() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase">Assigned Customers</span>
             <Users className="w-4 h-4 text-emerald-600" />
@@ -112,7 +112,7 @@ export default function StaffPerformance() {
           <p className="text-[11px] text-slate-400">Borrowers under your portfolio</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase">Active Loans</span>
             <BadgePercent className="w-4 h-4 text-blue-600" />
@@ -121,7 +121,7 @@ export default function StaffPerformance() {
           <p className="text-[11px] text-slate-400">Loans requiring active follow-up</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase">Today's Collections</span>
             <Receipt className="w-4 h-4 text-emerald-600" />
@@ -132,7 +132,7 @@ export default function StaffPerformance() {
           <p className="text-[11px] text-slate-400">Recovered today</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold uppercase">Pending Recovery</span>
             <Calendar className="w-4 h-4 text-amber-600" />
@@ -145,7 +145,7 @@ export default function StaffPerformance() {
       </div>
 
       {/* Recent Collections Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Recent Collections Recorded by You</h3>
@@ -156,9 +156,9 @@ export default function StaffPerformance() {
         {recentPayments.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-6">No collections logged yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs min-w-[500px]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold whitespace-nowrap">
                 <tr>
                   <th className="px-4 py-2.5">Receipt #</th>
                   <th className="px-4 py-2.5">Customer Name</th>

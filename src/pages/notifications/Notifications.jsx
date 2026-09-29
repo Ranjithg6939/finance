@@ -83,7 +83,7 @@ export default function Notifications() {
         </div>
 
         {notifications.length > 0 && (
-          <Button size="sm" variant="secondary" onClick={handleMarkAllRead}>
+          <Button size="sm" variant="secondary" onClick={handleMarkAllRead} className="w-full sm:w-auto justify-center">
             <CheckCheck className="w-4 h-4 mr-1.5" /> Mark All Read
           </Button>
         )}
@@ -102,11 +102,11 @@ export default function Notifications() {
           {notifications.map((n) => (
             <div
               key={n._id}
-              className={`p-4 flex items-start justify-between gap-4 transition-colors ${
+              className={`p-3.5 sm:p-4 flex items-start justify-between gap-3 sm:gap-4 transition-colors ${
                 n.isRead ? 'bg-white' : 'bg-emerald-50/40'
               }`}
             >
-              <div className="flex items-start gap-3.5">
+              <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 shrink-0">
                   {getIcon(n.type)}
                 </div>

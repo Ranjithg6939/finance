@@ -19,11 +19,11 @@ export default function Navbar({ toggleMobileSidebar }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur px-4 sm:px-6 shadow-sm">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur px-3 sm:px-6 shadow-sm">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={toggleMobileSidebar}
-          className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+          className="lg:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg shrink-0"
           aria-label="Toggle Navigation"
         >
           <Menu className="w-5 h-5" />
@@ -42,15 +42,15 @@ export default function Navbar({ toggleMobileSidebar }) {
         </form>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <NotificationDropdown />
 
-        <div className="h-6 w-px bg-slate-200 mx-1" />
+        <div className="h-6 w-px bg-slate-200 mx-0.5 sm:mx-1" />
 
         {/* Profile Card with Clear Role Display */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <div
-            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm ${
+            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0 ${
               isAdmin ? 'bg-emerald-600' : 'bg-blue-600'
             }`}
           >

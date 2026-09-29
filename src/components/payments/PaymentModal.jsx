@@ -111,10 +111,10 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
     <Modal isOpen={isOpen} onClose={onClose} title="Record Payment">
       <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
         {/* Loan & Customer summary */}
-        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <div>
             <span className="text-slate-400">Customer:</span>
-            <p className="font-semibold text-slate-800">
+            <p className="font-semibold text-slate-800 break-words">
               {loan.customer?.fullName || 'Selected Customer'}
             </p>
           </div>
@@ -228,11 +228,11 @@ export default function PaymentModal({ isOpen, onClose, loan, onPaymentSuccess }
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={loading} className="w-full sm:w-auto justify-center">
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={loading} className="w-full sm:w-auto justify-center">
             Save Payment
           </Button>
         </div>

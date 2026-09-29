@@ -92,7 +92,7 @@ export default function Customers() {
               : 'Borrowers assigned to you for collection and loan maintenance'}
           </p>
         </div>
-        <Button onClick={() => navigate(`${prefix}/customers/new`)} size="sm">
+        <Button onClick={() => navigate(`${prefix}/customers/new`)} size="sm" className="w-full sm:w-auto justify-center">
           <Plus className="w-4 h-4 mr-1.5" /> Add Customer
         </Button>
       </div>
@@ -144,9 +144,9 @@ export default function Customers() {
         />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
                 <tr>
                   <th className="px-4 py-3">Customer ID</th>
                   <th className="px-4 py-3">Name</th>

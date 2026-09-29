@@ -80,7 +80,7 @@ export default function ActiveLoans() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
               {scopeFilter === 'my_loans'
                 ? 'My Loans'
@@ -100,14 +100,14 @@ export default function ActiveLoans() {
             Track active installments, assigned borrowers, and recovery follow-ups
           </p>
         </div>
-        <Button onClick={() => navigate(`${prefix}/loans/new`)} size="sm">
+        <Button onClick={() => navigate(`${prefix}/loans/new`)} size="sm" className="w-full sm:w-auto justify-center">
           <Plus className="w-4 h-4 mr-1.5" /> Disburse Loan
         </Button>
       </div>
 
       {/* Scope Navigation Tabs: All Loans, My Loans, My Assigned Recovery Loans */}
-      <div className="border-b border-slate-200">
-        <nav className="flex space-x-2">
+      <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
+        <nav className="flex space-x-2 whitespace-nowrap min-w-max pb-1">
           {isAdmin && (
             <button
               onClick={() => setScopeFilter('all')}
@@ -186,9 +186,9 @@ export default function ActiveLoans() {
         />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+          <div className="overflow-x-auto w-full touch-scroll">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[760px]">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
                 <tr>
                   <th className="px-4 py-3">Loan ID</th>
                   <th className="px-4 py-3">Customer</th>

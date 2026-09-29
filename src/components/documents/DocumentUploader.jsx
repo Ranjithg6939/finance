@@ -201,7 +201,7 @@ export default function DocumentUploader({
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-xl p-4 sm:p-6 text-center cursor-pointer transition-colors ${
             dragActive
               ? 'border-emerald-500 bg-emerald-50/50'
               : file
@@ -220,7 +220,7 @@ export default function DocumentUploader({
             {file ? (
               <div className="flex flex-col items-center">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mb-2" />
-                <p className="text-xs font-bold text-slate-800">{file.name}</p>
+                <p className="text-xs font-bold text-slate-800 break-words max-w-full">{file.name}</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   {(file.size / 1024 / 1024).toFixed(2)} MB — Click to choose another
                 </p>
@@ -239,11 +239,11 @@ export default function DocumentUploader({
           </label>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={loading} className="w-full sm:w-auto justify-center">
             Cancel
           </Button>
-          <Button type="submit" loading={loading} disabled={!file}>
+          <Button type="submit" loading={loading} disabled={!file} className="w-full sm:w-auto justify-center">
             Upload Document
           </Button>
         </div>

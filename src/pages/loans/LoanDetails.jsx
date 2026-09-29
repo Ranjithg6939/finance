@@ -232,10 +232,10 @@ export default function LoanDetails() {
       </button>
 
       {/* Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 font-mono">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 min-w-0">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 font-mono break-words">
               Loan #{loan.loanId}
             </h2>
             <span
@@ -259,7 +259,7 @@ export default function LoanDetails() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 mt-1.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-slate-600 mt-1.5">
             <span className="font-semibold text-slate-900">
               Borrower:{' '}
               <button
@@ -281,19 +281,19 @@ export default function LoanDetails() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
           {/* Admin Approval / Rejection Actions for Pending Loans */}
           {isAdmin && loan.status === 'pending' && (
             <>
               <button
                 onClick={() => handleChangeStatus('active')}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
               >
                 <Check className="w-3.5 h-3.5" /> Approve Loan
               </button>
               <button
                 onClick={() => handleChangeStatus('rejected')}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"
               >
                 <X className="w-3.5 h-3.5" /> Reject Loan
               </button>
@@ -306,14 +306,14 @@ export default function LoanDetails() {
               size="sm"
               variant="secondary"
               onClick={handleOpenAssignModal}
-              className="flex items-center gap-1"
+              className="flex-1 sm:flex-none justify-center flex items-center gap-1"
             >
               <UserCheck className="w-3.5 h-3.5" /> Assign Staff
             </Button>
           )}
 
           {loan.status !== 'completed' && loan.status !== 'rejected' && (
-            <Button size="sm" onClick={() => setIsPaymentModalOpen(true)}>
+            <Button size="sm" onClick={() => setIsPaymentModalOpen(true)} className="flex-1 sm:flex-none justify-center">
               <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Record Payment
             </Button>
           )}
@@ -322,6 +322,7 @@ export default function LoanDetails() {
             size="sm"
             variant="secondary"
             onClick={() => setIsDocModalOpen(true)}
+            className="flex-1 sm:flex-none justify-center"
           >
             <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Document
           </Button>
@@ -340,35 +341,35 @@ export default function LoanDetails() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase">Principal</span>
-          <p className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(loan.principalAmount)}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase truncate block">Principal</span>
+          <p className="text-base sm:text-lg font-bold text-slate-900 mt-1 break-words">{formatCurrency(loan.principalAmount)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-amber-600 uppercase">Total Interest</span>
-          <p className="text-lg font-bold text-amber-700 mt-1">{formatCurrency(loan.totalInterest)}</p>
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+          <span className="text-[11px] font-semibold text-amber-600 uppercase truncate block">Total Interest</span>
+          <p className="text-base sm:text-lg font-bold text-amber-700 mt-1 break-words">{formatCurrency(loan.totalInterest)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase">Total Payable</span>
-          <p className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(loan.totalPayable)}</p>
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase truncate block">Total Payable</span>
+          <p className="text-base sm:text-lg font-bold text-slate-900 mt-1 break-words">{formatCurrency(loan.totalPayable)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-emerald-600 uppercase">Paid So Far</span>
-          <p className="text-lg font-bold text-emerald-700 mt-1">{formatCurrency(loan.totalPaid)}</p>
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
+          <span className="text-[11px] font-semibold text-emerald-600 uppercase truncate block">Paid So Far</span>
+          <p className="text-base sm:text-lg font-bold text-emerald-700 mt-1 break-words">{formatCurrency(loan.totalPaid)}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-rose-600 uppercase">Outstanding</span>
-          <p className="text-lg font-bold text-rose-700 mt-1">{formatCurrency(loan.outstandingAmount)}</p>
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm min-w-0 col-span-2 sm:col-span-1">
+          <span className="text-[11px] font-semibold text-rose-600 uppercase truncate block">Outstanding</span>
+          <p className="text-base sm:text-lg font-bold text-rose-700 mt-1 break-words">{formatCurrency(loan.outstandingAmount)}</p>
         </div>
       </div>
 
       {/* Progress Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-2">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2">
         <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
           <span>Repayment Progress</span>
           <span className="text-emerald-600 font-bold">{percentPaid}%</span>
@@ -504,7 +505,7 @@ export default function LoanDetails() {
           {/* Add Recovery Note Form */}
           <form onSubmit={handleAddRecoveryNote} className="space-y-2">
             <label className="block text-xs font-semibold text-slate-700">Add Recovery Note / Interaction Log</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={newRecoveryNote}
@@ -512,7 +513,7 @@ export default function LoanDetails() {
                 placeholder="E.g., Called borrower Ramesh; promised to pay ₹5,000 on Friday via UPI..."
                 className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-500 focus:outline-none"
               />
-              <Button type="submit" size="sm" disabled={submittingNote || !newRecoveryNote.trim()} className="flex items-center gap-1.5">
+              <Button type="submit" size="sm" disabled={submittingNote || !newRecoveryNote.trim()} className="w-full sm:w-auto justify-center flex items-center gap-1.5">
                 <Send className="w-3.5 h-3.5" />
                 {submittingNote ? 'Saving...' : 'Add Note'}
               </Button>
@@ -549,8 +550,8 @@ export default function LoanDetails() {
       )}
 
       {/* COMPLETE PAYMENT HISTORY TABLE */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-1">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Receipt className="w-4 h-4 text-emerald-600" />
@@ -564,9 +565,9 @@ export default function LoanDetails() {
         </div>
 
         {loan.payments && loan.payments.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+          <div className="overflow-x-auto w-full touch-scroll rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[620px]">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px] whitespace-nowrap">
                 <tr>
                   <th className="px-3.5 py-2.5">Date</th>
                   <th className="px-3.5 py-2.5">Receipt No</th>
@@ -643,16 +644,16 @@ export default function LoanDetails() {
 
       {/* Assign Staff & Recovery Staff Modal (Admin Only) */}
       {isAssignModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 shadow-2xl space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Manage Loan Assignments</h3>
                 <p className="text-xs text-slate-500">Loan #{loan.loanId}</p>
               </div>
               <button
                 onClick={() => setIsAssignModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -673,7 +674,7 @@ export default function LoanDetails() {
                   {staffList
                     .filter((st) => st.role === 'staff' || !st.role)
                     .map((st) => (
-                      <option key={st._id} value={st._id}>
+                       <option key={st._id} value={st._id}>
                         {st.name} ({st.email})
                       </option>
                     ))}
@@ -703,16 +704,17 @@ export default function LoanDetails() {
                 <p className="text-[11px] text-slate-400 mt-1">Responsible for recovery follow-ups and overdue tracking.</p>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={() => setIsAssignModalOpen(false)}
+                  className="w-full sm:w-auto justify-center"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" disabled={assignSubmitting}>
+                <Button type="submit" size="sm" disabled={assignSubmitting} className="w-full sm:w-auto justify-center">
                   {assignSubmitting ? 'Saving...' : 'Save Assignments'}
                 </Button>
               </div>

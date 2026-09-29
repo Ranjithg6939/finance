@@ -66,6 +66,12 @@ const customerSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    // Recovery Staff RBAC Assignment
+    assignedRecoveryStaff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     activeLoansCount: {
       type: Number,
       default: 0,
@@ -82,6 +88,7 @@ const customerSchema = new mongoose.Schema(
 
 customerSchema.index({ fullName: 'text', phone: 'text', customerId: 'text' });
 customerSchema.index({ assignedStaff: 1 });
+customerSchema.index({ assignedRecoveryStaff: 1 });
 
 const Customer = mongoose.model('Customer', customerSchema);
 export default Customer;

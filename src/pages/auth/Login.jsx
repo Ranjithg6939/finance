@@ -48,6 +48,8 @@ export default function Login() {
       const userRole = authRes?.user?.role || 'staff';
       if (userRole === 'admin') {
         navigate('/admin/dashboard');
+      } else if (userRole === 'recovery_staff') {
+        navigate('/recovery/dashboard');
       } else {
         navigate('/staff/dashboard');
       }

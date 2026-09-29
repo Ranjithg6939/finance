@@ -12,12 +12,17 @@ export const customerController = {
       const query = {};
 
       // DATA-LEVEL AUTHORIZATION:
-      // Staff only sees customers assigned to them!
       if (req.user.role === 'staff') {
         query.assignedStaff = req.user._id;
-      } else if (staffId) {
-        // Admin filtering by specific staff
-        query.assignedStaff = staffId;
+      } else if (req.user.role === 'recovery_staff') {
+        const recoveryLoanCustomers = await Loan.find({ assignedRecoveryStaff: req.user._id }).distinct('customer');
+        query.$or = [
+          { assignedRecoveryStaff: req.user._id },
+          { _id: { $in: recoveryLoanCustomers } },
+        ];
+      } else {
+        if (staffId) query.assignedStaff = staffId;
+        if (req.query.recoveryStaffId) query.assignedRecoveryStaff = req.query.recoveryStaffId;
       }
 
       if (status && ['active', 'inactive'].includes(status)) {
@@ -37,6 +42,7 @@ export const customerController = {
 
       const customers = await Customer.find(query)
         .populate('assignedStaff', 'name email phone')
+        .populate('assignedRecoveryStaff', 'name email phone')
         .sort({ createdAt: -1 })
         .limit(Number(limit))
         .skip((Number(page) - 1) * Number(limit));
@@ -65,7 +71,10 @@ export const customerController = {
     try {
       const { id } = req.params;
 
-      const customer = await Customer.findById(id).populate('assignedStaff', 'name email phone');
+      const customer = await Customer.findById(id)
+        .populate('assignedStaff', 'name email phone')
+        .populate('assignedRecoveryStaff', 'name email phone');
+
       if (!customer) {
         return res.status(404).json({
           success: false,
@@ -74,7 +83,6 @@ export const customerController = {
       }
 
       // DATA-LEVEL AUTHORIZATION:
-      // Prevent ID-based URL bypass by Staff
       if (
         req.user.role === 'staff' &&
         (!customer.assignedStaff || customer.assignedStaff._id.toString() !== req.user._id.toString())
@@ -85,15 +93,42 @@ export const customerController = {
         });
       }
 
+      if (req.user.role === 'recovery_staff') {
+        const hasAssignedLoan = await Loan.exists({ customer: customer._id, assignedRecoveryStaff: req.user._id });
+        const isAssignedCust = customer.assignedRecoveryStaff && customer.assignedRecoveryStaff._id.toString() === req.user._id.toString();
+        if (!hasAssignedLoan && !isAssignedCust) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have permission to access this customer record',
+          });
+        }
+      }
+
       // Fetch customer's loans and payments
       const [loans, payments] = await Promise.all([
         Loan.find({ customer: customer._id }).sort({ createdAt: -1 }),
         Payment.find({ customer: customer._id }).sort({ createdAt: -1 }),
       ]);
 
-      const activeLoansCount = loans.filter((l) => l.status === 'active').length;
+      const activeLoans = loans.filter((l) => l.status === 'active');
+      const activeLoansCount = activeLoans.length;
       const totalOutstanding = loans.reduce((acc, l) => acc + (l.outstandingAmount || 0), 0);
       const totalPaid = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+
+      // Find next due date across active loans
+      const todayStr = new Date().toISOString().split('T')[0];
+      let nextDueDate = null;
+      for (const loan of activeLoans) {
+        if (Array.isArray(loan.schedule)) {
+          for (const inst of loan.schedule) {
+            if (inst.status !== 'paid' && inst.dueDate >= todayStr) {
+              if (!nextDueDate || inst.dueDate < nextDueDate) {
+                nextDueDate = inst.dueDate;
+              }
+            }
+          }
+        }
+      }
 
       const customerData = customer.toObject();
       customerData.loans = loans;
@@ -103,6 +138,9 @@ export const customerController = {
         activeLoansCount,
         totalOutstanding,
         totalPaid,
+        paymentCount: payments.length,
+        lastPaymentDate: payments[0]?.paymentDate || null,
+        nextDueDate: nextDueDate || null,
       };
 
       return res.status(200).json({
@@ -270,6 +308,13 @@ export const customerController = {
   deleteCustomer: async (req, res) => {
     try {
       const { id } = req.params;
+
+      if (req.user.role !== 'admin' && !req.user.hasPermission?.('delete_customer')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: Only administrators can delete customer profiles',
+        });
+      }
 
       const customer = await Customer.findById(id);
       if (!customer) {

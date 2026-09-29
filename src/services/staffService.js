@@ -99,6 +99,22 @@ export const staffService = {
     }
   },
 
+  // PUT /api/staff/:id/permissions
+  updatePermissions: async (id, permissions) => {
+    if (isLocalMode()) {
+      return localStorageDb.updateStaffPermissions(id, permissions);
+    }
+    try {
+      const res = await api.put(`/staff/${id}/permissions`, { permissions });
+      return res.data;
+    } catch (err) {
+      if (err.response && err.response.data?.message) {
+        throw err;
+      }
+      return localStorageDb.updateStaffPermissions(id, permissions);
+    }
+  },
+
   // DELETE /api/staff/:id
   delete: async (id) => {
     if (isLocalMode()) {

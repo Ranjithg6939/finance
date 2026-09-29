@@ -53,6 +53,9 @@ export const authController = {
         { expiresIn: JWT_EXPIRES_IN }
       );
 
+      user.lastLogin = new Date();
+      await user.save();
+
       // Record Activity
       await recordActivity(
         { user, ip: req.ip },

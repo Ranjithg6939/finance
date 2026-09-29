@@ -52,6 +52,24 @@ const paymentSchema = new mongoose.Schema(
       enum: ['Cash', 'Bank Transfer', 'UPI', 'Cheque', 'Other'],
       default: 'Cash',
     },
+    receiptNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    previousOutstanding: {
+      type: Number,
+      default: 0,
+    },
+    currentOutstanding: {
+      type: Number,
+      default: 0,
+    },
+    customerPhone: {
+      type: String,
+      default: '',
+    },
     referenceNumber: {
       type: String,
       default: '',
@@ -63,6 +81,15 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
     collectorName: {
+      type: String,
+      default: '',
+    },
+    recoveryStaff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    recoveryStaffName: {
       type: String,
       default: '',
     },

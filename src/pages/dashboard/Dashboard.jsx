@@ -8,6 +8,7 @@ import CollectionChart from '../../components/dashboard/CollectionChart';
 import LoanChart from '../../components/dashboard/LoanChart';
 import UpcomingPayments from '../../components/dashboard/UpcomingPayments';
 import PaymentModal from '../../components/payments/PaymentModal';
+import RecoveryTasks from '../../components/dashboard/RecoveryTasks';
 import Loader from '../../components/common/Loader';
 import {
   Users,
@@ -33,6 +34,7 @@ import { Link } from 'react-router-dom';
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isRecovery = user?.role === 'recovery_staff';
 
   const [summary, setSummary] = useState(null);
   const [adminFinancials, setAdminFinancials] = useState(null);
@@ -61,8 +63,8 @@ export default function Dashboard() {
         setMonthlyData(monthRes?.data || []);
         setUpcoming(upRes?.data || []);
       } else {
-        // Staff Dashboard: strictly operational APIs only
-        // Do NOT call restricted financial APIs (monthly collections or admin financials)
+        // Staff or Recovery Staff Dashboard: strictly operational APIs only
+        // Zero access to restricted financial/profit analytics
         const [sumRes, upRes] = await Promise.all([
           dashboardService.getSummary(),
           dashboardService.getUpcomingPayments().catch(() => ({ data: [] })),
@@ -84,14 +86,14 @@ export default function Dashboard() {
 
   const handleRecordPayment = (item) => {
     setSelectedPaymentLoan({
-      _id: item.loanMongoId,
+      _id: item.loanMongoId || item._id,
       loanId: item.loanId,
       customer: {
         _id: item.customerId,
         fullName: item.customerName,
       },
-      outstandingAmount: item.amount,
-      totalPayable: item.amount,
+      outstandingAmount: item.amount || 0,
+      totalPayable: item.amount || 0,
       totalInterest: 0,
     });
     setIsPaymentModalOpen(true);
@@ -101,7 +103,7 @@ export default function Dashboard() {
     return <Loader text="Loading live dashboard KPIs..." />;
   }
 
-  const prefix = isAdmin ? '/admin' : '/staff';
+  const prefix = isAdmin ? '/admin' : isRecovery ? '/recovery' : '/staff';
 
   return (
     <div className="space-y-6">
@@ -110,36 +112,65 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
-              {isAdmin ? 'Administrator Executive Dashboard' : 'Staff Operational Dashboard'}
+              {isAdmin
+                ? 'Administrator Executive Dashboard'
+                : isRecovery
+                ? 'Recovery Officer Dashboard'
+                : 'Staff Operational Dashboard'}
             </h2>
             <span
               className={`px-2.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
-                isAdmin ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                isAdmin
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : isRecovery
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                  : 'bg-blue-100 text-blue-800 border border-blue-200'
               }`}
             >
-              {isAdmin ? 'Admin View' : 'Staff Operations'}
+              {isAdmin ? 'Admin View' : isRecovery ? 'Recovery Suite' : 'Staff Operations'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             {isAdmin
               ? 'Executive financial overview, company recovery KPIs, net margins, and staff performance'
+              : isRecovery
+              ? `Assigned borrower recovery portfolio, overdue follow-up tasks, and field collections for ${user?.name}`
               : `Assigned customer accounts, active loan schedules, and recovery follow-up tasks for ${user?.name}`}
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link
-            to={`${prefix}/customers/new`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            + New Customer
-          </Link>
-          <Link
-            to={`${prefix}/loans/new`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
-          >
-            + Create Loan
-          </Link>
+          {isRecovery ? (
+            <>
+              <Link
+                to="/recovery/customers"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Assigned Borrowers
+              </Link>
+              <Link
+                to="/recovery/payments"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-sm"
+              >
+                + Collect Payment
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to={`${prefix}/customers/new`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                + New Customer
+              </Link>
+              <Link
+                to={`${prefix}/loans/new`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+              >
+                + Create Loan
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -148,12 +179,12 @@ export default function Dashboard() {
         /*                          ADMIN DASHBOARD VIEW                             */
         /* ========================================================================= */
         <div className="space-y-6">
-          {/* Executive Financial Metrics */}
+          {/* Executive Due Date & Financial Metrics */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                 <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
-                Executive Financial Summary
+                Executive Dues & Financial Performance
               </h3>
               {adminFinancials?.profitMargin && (
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -164,57 +195,57 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <StatCard
-                title="Total Collections"
-                value={formatCurrency(adminFinancials?.totalCollections ?? summary?.totalCollections ?? 0)}
-                subtitle="Company-wide recovered"
-                icon={TrendingUp}
-                color="emerald"
-              />
-
-              <StatCard
-                title="Total Revenue"
-                value={formatCurrency(adminFinancials?.totalRevenue ?? summary?.totalRevenue ?? 0)}
-                subtitle="Accrued interest & fees"
-                icon={BadgePercent}
-                color="teal"
-              />
-
-              <StatCard
-                title="Total Expenses"
-                value={formatCurrency(adminFinancials?.totalExpenses ?? summary?.totalExpenses ?? 0)}
-                subtitle="Operations & overhead"
+                title="Today's Due"
+                value={formatCurrency(summary?.todayDue ?? 0)}
+                subtitle="Scheduled for collection today"
                 icon={Clock}
                 color="amber"
               />
 
               <StatCard
-                title="Net Profit"
-                value={formatCurrency(adminFinancials?.netProfit ?? summary?.netProfit ?? 0)}
-                subtitle="Net operating earnings"
-                icon={Coins}
-                color="emerald"
+                title="Upcoming Due"
+                value={formatCurrency(summary?.upcomingDue ?? 0)}
+                subtitle="Future scheduled installments"
+                icon={Calendar}
+                color="blue"
               />
 
               <StatCard
-                title="Overall Outstanding"
-                value={formatCurrency(adminFinancials?.overallOutstandingAmount ?? summary?.overallOutstandingAmount ?? 0)}
-                subtitle="Remaining portfolio due"
+                title="Overdue Loans"
+                value={summary?.overdueLoansCount ?? summary?.overdueInstallmentsCount ?? 0}
+                subtitle="Loans requiring recovery"
                 icon={AlertCircle}
                 color="rose"
               />
 
               <StatCard
-                title="Active Staff"
-                value={summary?.totalStaff ?? 0}
-                subtitle="Registered field officers"
-                icon={Shield}
+                title="Total Outstanding"
+                value={formatCurrency(summary?.totalOutstanding ?? adminFinancials?.overallOutstandingAmount ?? summary?.overallOutstandingAmount ?? 0)}
+                subtitle="Total principal & interest due"
+                icon={DollarSign}
                 color="violet"
+              />
+
+              <StatCard
+                title="Net Profit"
+                value={formatCurrency(adminFinancials?.netProfit ?? summary?.netProfit ?? 0)}
+                subtitle="Executive net margins"
+                icon={Coins}
+                color="emerald"
+              />
+
+              <StatCard
+                title="Total Collections"
+                value={formatCurrency(adminFinancials?.totalCollections ?? summary?.totalCollections ?? 0)}
+                subtitle="Total recovered to date"
+                icon={TrendingUp}
+                color="teal"
               />
             </div>
           </div>
 
           {/* Operational Loan Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
               <div>
                 <p className="text-xs text-slate-500 font-medium">Total Registered Borrowers</p>
@@ -247,6 +278,18 @@ export default function Dashboard() {
 
             <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
               <div>
+                <p className="text-xs text-slate-500 font-medium">Action Tasks Due</p>
+                <p className="text-2xl font-bold text-rose-600 mt-1">
+                  {summary?.overdueInstallmentsCount ?? summary?.assignedTasksCount ?? 0}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
+              <div>
                 <p className="text-xs text-slate-500 font-medium">Completed / Settled Loans</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{summary?.completedLoansCount ?? 0}</p>
               </div>
@@ -255,6 +298,13 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Assigned Tasks & Recovery Follow-ups (Company-wide for Admin) */}
+          <RecoveryTasks
+            tasks={summary?.assignedTasks || []}
+            onRecordPayment={handleRecordPayment}
+            isAdmin={true}
+          />
 
           {/* Admin Staff Performance Section */}
           {summary?.staffPerformance && summary.staffPerformance.length > 0 && (
@@ -355,6 +405,95 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      ) : isRecovery ? (
+        /* ========================================================================= */
+        /*                     RECOVERY STAFF DASHBOARD VIEW                         */
+        /*      (FIELD RECOVERY METRICS, OVERDUE TASKS - ZERO PROFIT/FINANCIALS)     */
+        /* ========================================================================= */
+        <div className="space-y-6">
+          {/* Recovery Operational Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <StatCard
+              title="Today's Recovery"
+              value={formatCurrency(summary?.todayRecovery ?? summary?.todayDue ?? 0)}
+              subtitle="Target due for collection today"
+              icon={Clock}
+              color="amber"
+            />
+
+            <StatCard
+              title="Overdue Assigned Loans"
+              value={summary?.overdueAssignedLoans ?? summary?.overdueLoansCount ?? 0}
+              subtitle="Critical overdue recovery cases"
+              icon={AlertCircle}
+              color="rose"
+            />
+
+            <StatCard
+              title="Upcoming Recovery"
+              value={formatCurrency(summary?.upcomingRecovery ?? 0)}
+              subtitle="Future scheduled recoveries"
+              icon={Calendar}
+              color="blue"
+            />
+
+            <StatCard
+              title="Outstanding Amount"
+              value={formatCurrency(summary?.outstandingAmount ?? summary?.totalOutstanding ?? 0)}
+              subtitle="Total assigned recovery balance"
+              icon={DollarSign}
+              color="violet"
+            />
+
+            <StatCard
+              title="Assigned Borrowers"
+              value={summary?.assignedCustomersCount ?? summary?.totalCustomers ?? 0}
+              subtitle="Borrowers under recovery"
+              icon={Users}
+              color="emerald"
+            />
+
+            <StatCard
+              title="Assigned Loans"
+              value={summary?.assignedLoansCount ?? summary?.totalLoans ?? 0}
+              subtitle="Total recovery accounts"
+              icon={Coins}
+              color="teal"
+            />
+          </div>
+
+          {/* Recovery Assigned Action Items & Tasks */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <RecoveryTasks
+                tasks={summary?.assignedTasks || []}
+                onRecordPayment={handleRecordPayment}
+                isAdmin={false}
+              />
+            </div>
+
+            {/* Recovery Portfolio Distribution */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Assigned Case Status</h3>
+                  <p className="text-[11px] text-slate-400">Distribution of your recovery accounts</p>
+                </div>
+                <Link
+                  to="/recovery/loans"
+                  className="text-xs text-amber-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  My Loans <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <LoanChart
+                active={summary?.activeLoansCount || 0}
+                completed={summary?.completedLoansCount || 0}
+                due={summary?.pendingLoansCount || 0}
+              />
+            </div>
+          </div>
+        </div>
       ) : (
         /* ========================================================================= */
         /*                          STAFF DASHBOARD VIEW                             */
@@ -363,6 +502,30 @@ export default function Dashboard() {
         <div className="space-y-6">
           {/* Operational Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <StatCard
+              title="Assigned Due"
+              value={formatCurrency(summary?.assignedDue ?? 0)}
+              subtitle="Active balance assigned to you"
+              icon={DollarSign}
+              color="blue"
+            />
+
+            <StatCard
+              title="Today's Due"
+              value={formatCurrency(summary?.todayDue ?? 0)}
+              subtitle="Installments due today"
+              icon={Clock}
+              color="amber"
+            />
+
+            <StatCard
+              title="Overdue Assigned Loans"
+              value={summary?.overdueAssignedLoans ?? summary?.overdueLoansCount ?? 0}
+              subtitle="Assigned loans past due"
+              icon={AlertCircle}
+              color="rose"
+            />
+
             <StatCard
               title="My Assigned Customers"
               value={summary?.totalCustomers ?? 0}
@@ -376,38 +539,14 @@ export default function Dashboard() {
               value={summary?.activeLoansCount ?? 0}
               subtitle="Ongoing customer agreements"
               icon={Coins}
-              color="blue"
+              color="teal"
             />
 
             <StatCard
               title="Pending Installments"
               value={summary?.pendingInstallmentsCount ?? 0}
               subtitle="Installments due for collection"
-              icon={Clock}
-              color="amber"
-            />
-
-            <StatCard
-              title="Action Tasks Due"
-              value={summary?.overdueInstallmentsCount ?? summary?.assignedTasksCount ?? 0}
-              subtitle="Overdue recovery follow-ups"
-              icon={AlertCircle}
-              color="rose"
-            />
-
-            <StatCard
-              title="Completed Loans"
-              value={summary?.completedLoansCount ?? 0}
-              subtitle="Successfully settled loans"
-              icon={CheckCircle}
-              color="teal"
-            />
-
-            <StatCard
-              title="Pending Approvals"
-              value={summary?.pendingLoansCount ?? 0}
-              subtitle="Submitted awaiting review"
-              icon={UserCheck}
+              icon={Calendar}
               color="violet"
             />
           </div>
@@ -415,90 +554,12 @@ export default function Dashboard() {
           {/* Staff Assigned Action Items & Tasks */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Task list: overdue & today dues */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <ListTodo className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">Assigned Tasks & Recovery Follow-ups</h3>
-                    <p className="text-[11px] text-slate-400">Scheduled dues and borrower contacts requiring immediate attention</p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                  {summary?.assignedTasks?.length || 0} Priority Tasks
-                </span>
-              </div>
-
-              {summary?.assignedTasks && summary.assignedTasks.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {summary.assignedTasks.map((task) => (
-                    <div key={task.taskId} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-slate-900">{task.customerName}</p>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              task.status === 'overdue'
-                                ? 'bg-rose-100 text-rose-800'
-                                : task.status === 'due_today'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {task.status === 'overdue' ? 'Overdue' : task.status === 'due_today' ? 'Due Today' : 'Scheduled'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500">
-                          Loan #{task.loanId} • Installment #{task.installmentNumber} • Due Date:{' '}
-                          <span className="font-semibold text-slate-700">{task.dueDate}</span>
-                        </p>
-                        {task.customerPhone && (
-                          <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <PhoneCall className="w-3 h-3 text-slate-400" /> {task.customerPhone}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {task.customerPhone && (
-                          <a
-                            href={`tel:${task.customerPhone}`}
-                            className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors inline-flex items-center gap-1"
-                          >
-                            <PhoneCall className="w-3 h-3" /> Call
-                          </a>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedPaymentLoan({
-                              _id: task.loanMongoId,
-                              loanId: task.loanId,
-                              customer: {
-                                _id: task.customerId,
-                                fullName: task.customerName,
-                              },
-                              outstandingAmount: 0,
-                              totalPayable: 0,
-                              totalInterest: 0,
-                            });
-                            setIsPaymentModalOpen(true);
-                          }}
-                          className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
-                        >
-                          Record Payment
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-slate-400 text-xs">
-                  <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                  No urgent pending recovery tasks. All assigned installment schedules are up to date!
-                </div>
-              )}
+            <div className="lg:col-span-2">
+              <RecoveryTasks
+                tasks={summary?.assignedTasks || []}
+                onRecordPayment={handleRecordPayment}
+                isAdmin={false}
+              />
             </div>
 
             {/* Staff Loan Portfolio Distribution */}

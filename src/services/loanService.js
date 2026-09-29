@@ -106,6 +106,42 @@ export const loanService = {
     }
   },
 
+  assignRecoveryStaff: async (id, recoveryStaffId) => {
+    if (isLocalMode()) {
+      return localStorageDb.assignRecoveryStaff(id, recoveryStaffId);
+    }
+    try {
+      const res = await api.patch(`/loans/${id}/assign-recovery`, { recoveryStaffId });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.assignRecoveryStaff(id, recoveryStaffId);
+    }
+  },
+
+  updateRecoveryStatus: async (id, recoveryStatus) => {
+    if (isLocalMode()) {
+      return localStorageDb.updateRecoveryStatus(id, recoveryStatus);
+    }
+    try {
+      const res = await api.patch(`/loans/${id}/recovery-status`, { recoveryStatus });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.updateRecoveryStatus(id, recoveryStatus);
+    }
+  },
+
+  addRecoveryNote: async (id, note) => {
+    if (isLocalMode()) {
+      return localStorageDb.addRecoveryNote(id, note);
+    }
+    try {
+      const res = await api.post(`/loans/${id}/recovery-note`, { note });
+      return res.data;
+    } catch (err) {
+      return localStorageDb.addRecoveryNote(id, note);
+    }
+  },
+
   getByCustomer: async (customerId) => {
     if (isLocalMode()) {
       return localStorageDb.getLoans({ customerId });

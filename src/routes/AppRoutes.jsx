@@ -41,7 +41,10 @@ function DynamicRoleRedirect({ subPath }) {
   const { user } = useAuth();
   const location = useLocation();
 
-  const role = user?.role === 'admin' ? 'admin' : 'staff';
+  let role = 'staff';
+  if (user?.role === 'admin') role = 'admin';
+  else if (user?.role === 'recovery_staff') role = 'recovery';
+
   const target = subPath ? `/${role}/${subPath}` : `/${role}/dashboard`;
   return <Navigate to={`${target}${location.search}`} replace />;
 }
@@ -108,6 +111,29 @@ export default function AppRoutes() {
           <Route path="/staff/documents" element={<Documents />} />
           <Route path="/staff/performance" element={<StaffPerformance />} />
           <Route path="/staff/notifications" element={<Notifications />} />
+        </Route>
+      </Route>
+
+      {/* RECOVERY STAFF ROUTES (Protected - Recovery Staff & Admin) */}
+      <Route element={<ProtectedRoute allowedRoles={['recovery_staff', 'admin']} fallback="redirect" />}>
+        <Route element={<MainLayout />}>
+          <Route path="/recovery" element={<Navigate to="/recovery/dashboard" replace />} />
+          <Route path="/recovery/dashboard" element={<Dashboard />} />
+
+          {/* Assigned Customers only */}
+          <Route path="/recovery/customers" element={<Customers />} />
+          <Route path="/recovery/customers/:customerId" element={<CustomerDetails />} />
+
+          {/* Assigned Loans only */}
+          <Route path="/recovery/loans" element={<ActiveLoans />} />
+          <Route path="/recovery/loans/active" element={<ActiveLoans />} />
+          <Route path="/recovery/loans/completed" element={<CompletedLoans />} />
+          <Route path="/recovery/loans/:loanId" element={<LoanDetails />} />
+
+          {/* Payments & Collections */}
+          <Route path="/recovery/payments" element={<Payments />} />
+          <Route path="/recovery/documents" element={<Documents />} />
+          <Route path="/recovery/notifications" element={<Notifications />} />
         </Route>
       </Route>
 

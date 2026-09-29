@@ -19,9 +19,10 @@ import {
   Shield,
   History,
   Award,
+  ListTodo,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { isAdmin, isStaff } from '../../utils/permissions';
+import { isAdmin, isStaff, isRecoveryStaff } from '../../utils/permissions';
 
 export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
   const { user, logout } = useAuth();
@@ -29,7 +30,15 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
   const [loansOpen, setLoansOpen] = useState(true);
 
   const adminRole = isAdmin(user);
-  const prefix = adminRole ? '/admin' : '/staff';
+  const recoveryRole = isRecoveryStaff(user);
+  const prefix = adminRole ? '/admin' : recoveryRole ? '/recovery' : '/staff';
+
+  const roleName = adminRole ? 'Administrator' : recoveryRole ? 'Recovery Staff' : 'Staff';
+  const rolePillClass = adminRole
+    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+    : recoveryRole
+    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+    : 'bg-blue-50 text-blue-800 border border-blue-100';
 
   const handleLogout = () => {
     logout();
@@ -39,14 +48,18 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
   const navLinkClasses = ({ isActive }) =>
     `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
       isActive
-        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+        ? recoveryRole
+          ? 'bg-amber-600 text-white shadow-sm shadow-amber-200'
+          : 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
     }`;
 
   const subNavLinkClasses = ({ isActive }) =>
     `flex items-center gap-2 pl-9 pr-3 py-2 rounded-lg text-xs font-medium transition-colors ${
       isActive
-        ? 'text-emerald-700 font-semibold bg-emerald-50'
+        ? recoveryRole
+          ? 'text-amber-700 font-semibold bg-amber-50'
+          : 'text-emerald-700 font-semibold bg-emerald-50'
         : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
     }`;
 
@@ -55,13 +68,19 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
       {/* Brand Header */}
       <div className="flex items-center justify-between h-16 px-5 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md ${
+              recoveryRole
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/20'
+                : 'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-emerald-500/20'
+            }`}
+          >
             <Landmark className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-base font-bold tracking-tight text-slate-900 leading-none">FinVeda</h1>
             <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
-              {adminRole ? 'Admin Portal' : 'Staff Suite'}
+              {adminRole ? 'Admin Portal' : recoveryRole ? 'Recovery Suite' : 'Staff Suite'}
             </span>
           </div>
         </div>
@@ -74,13 +93,11 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
 
       {/* Role Pill Indicator */}
       <div className="px-4 pt-3 pb-1">
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-            adminRole ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-blue-50 text-blue-800 border border-blue-100'
-          }`}
-        >
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${rolePillClass}`}>
           <Shield className="w-3.5 h-3.5" />
-          <span>Signed in as <strong className="capitalize">{adminRole ? 'Administrator' : 'Staff'}</strong></span>
+          <span>
+            Signed in as <strong>{roleName}</strong>
+          </span>
         </div>
       </div>
 
@@ -89,16 +106,32 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
         {/* Dashboard */}
         <NavLink to={`${prefix}/dashboard`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <LayoutDashboard className="w-4 h-4" />
-          <span>Dashboard</span>
+          <span>{recoveryRole ? 'Recovery Dashboard' : 'Dashboard'}</span>
+        </NavLink>
+
+        {/* Assigned Tasks & Recovery Follow-ups */}
+        <NavLink
+          to={`${prefix}/dashboard#tasks`}
+          onClick={() => {
+            closeMobileSidebar();
+            setTimeout(() => {
+              const el = document.getElementById('tasks');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+          }}
+          className={navLinkClasses}
+        >
+          <ListTodo className="w-4 h-4 text-amber-500" />
+          <span>{recoveryRole ? 'Follow-up Tasks' : 'Recovery Tasks'}</span>
         </NavLink>
 
         {/* Customers */}
         <NavLink to={`${prefix}/customers`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <Users className="w-4 h-4" />
-          <span>Customers</span>
+          <span>{recoveryRole ? 'Assigned Borrowers' : 'Customers'}</span>
         </NavLink>
 
-        {/* Collapsible Loans Group */}
+        {/* Loans Group */}
         <div>
           <button
             onClick={() => setLoansOpen(!loansOpen)}
@@ -106,17 +139,19 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
           >
             <div className="flex items-center gap-3">
               <BadgePercent className="w-4 h-4" />
-              <span>Loans</span>
+              <span>{recoveryRole ? 'Assigned Loans' : 'Loans'}</span>
             </div>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${loansOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {loansOpen && (
             <div className="space-y-0.5 mt-1">
-              <NavLink to={`${prefix}/loans/new`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
-                <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Create Loan</span>
-              </NavLink>
+              {!recoveryRole && (
+                <NavLink to={`${prefix}/loans/new`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
+                  <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Create Loan</span>
+                </NavLink>
+              )}
               <NavLink to={`${prefix}/loans/active`} onClick={closeMobileSidebar} className={subNavLinkClasses}>
                 <Clock className="w-3.5 h-3.5 text-blue-500" />
                 <span>Active Loans</span>
@@ -129,14 +164,14 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
           )}
         </div>
 
-        {/* Payments */}
+        {/* Payments / Collections */}
         <NavLink to={`${prefix}/payments`} onClick={closeMobileSidebar} className={navLinkClasses}>
           <Receipt className="w-4 h-4" />
-          <span>Payments</span>
+          <span>{recoveryRole ? 'Collect Payment' : 'Payments'}</span>
         </NavLink>
 
         {/* Staff Only: My Performance */}
-        {!adminRole && (
+        {!adminRole && !recoveryRole && (
           <NavLink to="/staff/performance" onClick={closeMobileSidebar} className={navLinkClasses}>
             <Award className="w-4 h-4 text-blue-500" />
             <span>My Performance</span>
@@ -144,10 +179,12 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
         )}
 
         {/* Documents */}
-        <NavLink to={`${prefix}/documents`} onClick={closeMobileSidebar} className={navLinkClasses}>
-          <FileText className="w-4 h-4" />
-          <span>Documents</span>
-        </NavLink>
+        {!recoveryRole && (
+          <NavLink to={`${prefix}/documents`} onClick={closeMobileSidebar} className={navLinkClasses}>
+            <FileText className="w-4 h-4" />
+            <span>Documents</span>
+          </NavLink>
+        )}
 
         {/* ADMIN ONLY SECTIONS */}
         {adminRole && (
@@ -158,12 +195,12 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
 
             <NavLink to="/admin/staff" onClick={closeMobileSidebar} className={navLinkClasses}>
               <Shield className="w-4 h-4 text-emerald-600" />
-              <span>Staff Management</span>
+              <span>Staff & Recovery</span>
             </NavLink>
 
             <NavLink to="/admin/reports" onClick={closeMobileSidebar} className={navLinkClasses}>
               <BarChart3 className="w-4 h-4" />
-              <span>Reports</span>
+              <span>Profit & Reports</span>
             </NavLink>
 
             <NavLink to="/admin/activity-logs" onClick={closeMobileSidebar} className={navLinkClasses}>
@@ -200,17 +237,13 @@ export default function Sidebar({ mobileOpen, closeMobileSidebar }) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:block w-64 h-screen sticky top-0 shrink-0">
-        {sidebarContent}
-      </aside>
+      <aside className="hidden lg:block w-64 h-screen sticky top-0 shrink-0">{sidebarContent}</aside>
 
       {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={closeMobileSidebar} />
-          <div className="relative w-64 h-full z-10 shadow-2xl">
-            {sidebarContent}
-          </div>
+          <div className="relative w-64 h-full z-10 shadow-2xl">{sidebarContent}</div>
         </div>
       )}
     </>

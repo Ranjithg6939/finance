@@ -23,6 +23,17 @@ export const paymentController = {
           { customer: { $in: assignedCustomerIds } },
           { loan: { $in: assignedLoanIds } },
         ];
+      } else if (req.user.role === 'recovery_staff') {
+        const [assignedCustomerIds, assignedLoanIds] = await Promise.all([
+          Customer.find({ assignedRecoveryStaff: req.user._id }).distinct('_id'),
+          Loan.find({ assignedRecoveryStaff: req.user._id }).distinct('_id'),
+        ]);
+
+        query.$or = [
+          { collectedBy: req.user._id },
+          { customer: { $in: assignedCustomerIds } },
+          { loan: { $in: assignedLoanIds } },
+        ];
       }
 
       if (loanId) query.loan = loanId;
@@ -140,31 +151,62 @@ export const paymentController = {
         });
       }
 
+      if (
+        req.user.role === 'recovery_staff' &&
+        (!loan.assignedRecoveryStaff || loan.assignedRecoveryStaff.toString() !== req.user._id.toString())
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to record payments for this recovery loan',
+        });
+      }
+
       // Generate payment ID
       const count = await Payment.countDocuments();
       const newPaymentId = `PAY-${1001 + count}`;
 
+      // Generate unique receipt number: REC-YYYY-000001
+      const year = new Date().getFullYear();
+      let receiptNum;
+      let receiptCounter = count + 1;
+      while (true) {
+        receiptNum = `REC-${year}-${String(receiptCounter).padStart(6, '0')}`;
+        const exists = await Payment.findOne({ receiptNumber: receiptNum });
+        if (!exists) break;
+        receiptCounter++;
+      }
+
+      const prevOutstanding = loan.outstandingAmount || loan.totalPayable || 0;
+      const currOutstanding = Math.max(0, prevOutstanding - numAmount);
+      const isRecoveryStaff = req.user.role === 'recovery_staff';
+
       // Create payment
       const payment = await Payment.create({
         paymentId: newPaymentId,
+        receiptNumber: receiptNum,
         loan: loan._id,
         loanId: loan.loanId,
         customer: loan.customer._id,
         customerName: loan.customer.fullName,
         customerId: loan.customer.customerId,
+        customerPhone: loan.customer.phone || '',
         amount: numAmount,
+        previousOutstanding: prevOutstanding,
+        currentOutstanding: currOutstanding,
         paymentDate,
         paymentMethod,
         referenceNumber,
         collectedBy: req.user._id,
         collectorName: req.user.name,
+        recoveryStaff: isRecoveryStaff ? req.user._id : null,
+        recoveryStaffName: isRecoveryStaff ? req.user.name : '',
         notes,
         status: 'completed',
       });
 
       // Update Loan finances
       loan.totalPaid = (loan.totalPaid || 0) + numAmount;
-      loan.outstandingAmount = Math.max(0, (loan.outstandingAmount || loan.totalPayable) - numAmount);
+      loan.outstandingAmount = currOutstanding;
 
       // Check loan completion
       if (loan.outstandingAmount === 0) {

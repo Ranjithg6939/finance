@@ -27,8 +27,12 @@ export default function ActiveLoans() {
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';
-  const prefix = isAdmin ? '/admin' : '/staff';
+  const isRecoveryStaff = user?.role === 'recovery_staff';
+  const isStaff = user?.role === 'staff';
+  const prefix = isAdmin ? '/admin' : isRecoveryStaff ? '/recovery' : '/staff';
 
+  const defaultScope = isRecoveryStaff ? 'my_recovery' : isStaff ? 'my_loans' : 'all';
+  const [scopeFilter, setScopeFilter] = useState(defaultScope);
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -47,6 +51,7 @@ export default function ActiveLoans() {
         search,
         interestType: interestTypeFilter || undefined,
         paymentFrequency: frequencyFilter || undefined,
+        filter: scopeFilter !== 'all' ? scopeFilter : undefined,
       });
       setLoans(res.data || []);
     } catch (err) {
@@ -58,7 +63,7 @@ export default function ActiveLoans() {
 
   useEffect(() => {
     fetchLoans();
-  }, [interestTypeFilter, frequencyFilter]);
+  }, [interestTypeFilter, frequencyFilter, scopeFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -77,25 +82,65 @@ export default function ActiveLoans() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">
-              {isAdmin ? 'All Active Loans' : 'My Active Loans'}
+              {scopeFilter === 'my_loans'
+                ? 'My Loans'
+                : scopeFilter === 'my_recovery'
+                ? 'My Assigned Recovery Loans'
+                : 'All Active Loans'}
             </h2>
             <span
               className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
                 isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
               }`}
             >
-              {isAdmin ? 'Admin View' : 'Assigned Only'}
+              {isAdmin ? 'Admin View' : isRecoveryStaff ? 'Recovery Portal' : 'Staff Portal'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isAdmin
-              ? 'Company-wide active loan agreements and staff recovery tracking'
-              : 'Ongoing loans assigned to your recovery list'}
+            Track active installments, assigned borrowers, and recovery follow-ups
           </p>
         </div>
         <Button onClick={() => navigate(`${prefix}/loans/new`)} size="sm">
           <Plus className="w-4 h-4 mr-1.5" /> Disburse Loan
         </Button>
+      </div>
+
+      {/* Scope Navigation Tabs: All Loans, My Loans, My Assigned Recovery Loans */}
+      <div className="border-b border-slate-200">
+        <nav className="flex space-x-2">
+          {isAdmin && (
+            <button
+              onClick={() => setScopeFilter('all')}
+              className={`py-2 px-3.5 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+                scopeFilter === 'all'
+                  ? 'border-emerald-600 text-emerald-600 bg-white'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              All Loans
+            </button>
+          )}
+          <button
+            onClick={() => setScopeFilter('my_loans')}
+            className={`py-2 px-3.5 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+              scopeFilter === 'my_loans'
+                ? 'border-emerald-600 text-emerald-600 bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            My Loans
+          </button>
+          <button
+            onClick={() => setScopeFilter('my_recovery')}
+            className={`py-2 px-3.5 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+              scopeFilter === 'my_recovery'
+                ? 'border-emerald-600 text-emerald-600 bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            My Assigned Recovery Loans
+          </button>
+        </nav>
       </div>
 
       {/* Filters Bar */}
@@ -148,6 +193,7 @@ export default function ActiveLoans() {
                   <th className="px-4 py-3">Loan ID</th>
                   <th className="px-4 py-3">Customer</th>
                   {isAdmin && <th className="px-4 py-3">Assigned Staff</th>}
+                  {(isAdmin || scopeFilter === 'my_recovery') && <th className="px-4 py-3">Recovery Officer</th>}
                   <th className="px-4 py-3">Principal</th>
                   <th className="px-4 py-3">Total Payable</th>
                   <th className="px-4 py-3">Paid</th>
@@ -158,7 +204,9 @@ export default function ActiveLoans() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loans.map((loan) => {
-                  const staffName = loan.assignedStaff?.name || 'Unassigned';
+                  const staffName = loan.assignedStaff?.name || (typeof loan.assignedStaff === 'string' ? loan.assignedStaff : 'Unassigned');
+                  const recoveryStaffName = loan.assignedRecoveryStaff?.name || (typeof loan.assignedRecoveryStaff === 'string' ? loan.assignedRecoveryStaff : 'Unassigned');
+
                   return (
                     <tr key={loan._id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-slate-900">
@@ -172,7 +220,7 @@ export default function ActiveLoans() {
                       <td className="px-4 py-3 font-medium text-slate-900">
                         <div>{loan.customer?.fullName || loan.customerName || '—'}</div>
                         <div className="text-[10px] text-slate-400 font-mono">
-                          {loan.customer?.customerId || loan.customerId}
+                          {loan.customer?.phone || loan.customer?.customerId || loan.customerId}
                         </div>
                       </td>
                       {isAdmin && (
@@ -180,6 +228,13 @@ export default function ActiveLoans() {
                           <span className="inline-flex items-center gap-1 font-medium text-slate-700">
                             <UserCheck className="w-3.5 h-3.5 text-blue-500" />
                             {staffName}
+                          </span>
+                        </td>
+                      )}
+                      {(isAdmin || scopeFilter === 'my_recovery') && (
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded ${loan.assignedRecoveryStaff ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'text-slate-400'}`}>
+                            {recoveryStaffName}
                           </span>
                         </td>
                       )}

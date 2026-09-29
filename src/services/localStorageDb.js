@@ -455,6 +455,25 @@ export const localStorageDb = {
     const totalPaid = custPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const outstanding = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
 
+    // Compute last payment date
+    const sortedPayments = [...custPayments].sort((a, b) => new Date(b.paymentDate || b.createdAt) - new Date(a.paymentDate || a.createdAt));
+    const lastPaymentDate = sortedPayments[0]?.paymentDate || null;
+
+    // Compute next due date from active loan schedules
+    const todayStr = new Date().toISOString().split('T')[0];
+    let nextDueDate = null;
+    activeLoans.forEach((loan) => {
+      if (Array.isArray(loan.schedule)) {
+        loan.schedule.forEach((inst) => {
+          if (inst.status !== 'paid' && inst.dueDate >= todayStr) {
+            if (!nextDueDate || inst.dueDate < nextDueDate) {
+              nextDueDate = inst.dueDate;
+            }
+          }
+        });
+      }
+    });
+
     const fullCustomer = {
       ...customer,
       activeLoans,
@@ -463,11 +482,16 @@ export const localStorageDb = {
       documents: custDocs,
       summary: {
         totalLoans: custLoans.length,
+        totalLoan: custLoans.length,
         activeLoans: activeLoans.length,
         completedLoans: completedLoans.length,
         totalBorrowed,
         totalPaid,
         outstanding,
+        totalOutstanding: outstanding,
+        paymentCount: custPayments.length,
+        lastPaymentDate,
+        nextDueDate,
       },
     };
 
@@ -699,7 +723,28 @@ export const localStorageDb = {
 
   getLoans: (params = {}) => {
     let loans = getItem(STORAGE_KEYS.LOANS);
-    const { status, search, interestType, paymentFrequency, customerId } = params;
+    const { status, search, interestType, paymentFrequency, customerId, filter, staffId, recoveryStaffId } = params;
+
+    let currentUserId = null;
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      currentUserId = u._id || u.id;
+    } catch (e) {
+      currentUserId = null;
+    }
+
+    if (filter === 'my_loans' || staffId) {
+      const targetStaff = staffId || currentUserId;
+      if (targetStaff) {
+        loans = loans.filter((l) => l.assignedStaff?._id === targetStaff || l.assignedStaff === targetStaff);
+      }
+    }
+    if (filter === 'my_recovery' || recoveryStaffId) {
+      const targetRecovery = recoveryStaffId || currentUserId;
+      if (targetRecovery) {
+        loans = loans.filter((l) => l.assignedRecoveryStaff?._id === targetRecovery || l.assignedRecoveryStaff === targetRecovery);
+      }
+    }
 
     if (status && status !== 'all') {
       loans = loans.filter((l) => l.status === status);
@@ -869,7 +914,7 @@ export const localStorageDb = {
 
   getPaymentReceipt: (paymentId) => {
     const payments = getItem(STORAGE_KEYS.PAYMENTS);
-    const payment = payments.find((p) => p._id === paymentId || p.paymentId === paymentId);
+    const payment = payments.find((p) => p._id === paymentId || p.paymentId === paymentId || p.receiptNumber === paymentId);
 
     if (!payment) {
       throw new Error('Payment not found');
@@ -882,23 +927,35 @@ export const localStorageDb = {
       success: true,
       data: {
         receiptNumber: payment.receiptNumber || `REC-${payment.paymentId}`,
+        paymentId: payment.paymentId,
         date: payment.paymentDate,
+        paymentDate: payment.paymentDate,
+        customerName: payment.customer?.fullName || payment.customerName || 'Borrower',
+        customerPhone: payment.customerPhone || payment.customer?.phone || '',
         customer: {
-          name: payment.customer?.fullName,
-          id: payment.customer?.customerId,
-          phone: payment.customer?.phone,
+          name: payment.customer?.fullName || payment.customerName || 'Borrower',
+          id: payment.customer?.customerId || '',
+          phone: payment.customerPhone || payment.customer?.phone || '',
         },
+        loanId: loan?.loanId || payment.loan?.loanId || 'N/A',
         loan: {
           loanId: loan?.loanId,
           principalAmount: loan?.principalAmount,
         },
+        paymentAmount: payment.amount,
+        amount: payment.amount,
+        previousOutstanding: payment.previousOutstanding ?? ((loan?.outstandingAmount || 0) + payment.amount),
+        currentOutstanding: payment.currentOutstanding ?? (loan?.outstandingAmount || 0),
+        paymentMethod: payment.paymentMethod || 'Cash',
+        collectedBy: payment.collectedByName || payment.staffName || 'Staff',
+        notes: payment.notes || '',
         paymentDetails: {
           amount: payment.amount,
           principalAmount: payment.principalAmount,
           interestAmount: payment.interestAmount,
           paymentMethod: payment.paymentMethod,
           transactionReference: payment.transactionReference,
-          remainingBalance: loan?.outstandingAmount ?? 0,
+          remainingBalance: payment.currentOutstanding ?? (loan?.outstandingAmount || 0),
         },
       },
     };
@@ -925,10 +982,26 @@ export const localStorageDb = {
     const pAmt = parseFloat(payload.principalAmount) || 0;
     const iAmt = parseFloat(payload.interestAmount) || 0;
 
+    let currentUser = null;
+    try {
+      currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (e) {
+      currentUser = null;
+    }
+
+    const year = new Date().getFullYear();
+    let counter = payments.length + 1;
+    let receiptNumber = `REC-${year}-${String(counter).padStart(6, '0')}`;
+    while (payments.some((p) => p.receiptNumber === receiptNumber)) {
+      counter++;
+      receiptNumber = `REC-${year}-${String(counter).padStart(6, '0')}`;
+    }
+
     const newId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const payNum = 1000 + payments.length + 1;
     const paymentId = `PAY-${payNum}`;
-    const receiptNumber = `REC-${2000 + payments.length + 1}`;
+    const currOutstanding = Math.max(0, prevOutstanding - payAmount);
+    const collectorName = payload.collectedByName || payload.staffName || currentUser?.name || 'Administrator';
 
     const newPayment = {
       _id: newId,
@@ -939,7 +1012,7 @@ export const localStorageDb = {
         _id: loan._id,
         loanId: loan.loanId,
         principalAmount: loan.principalAmount,
-        outstandingAmount: Math.max(0, (loan.outstandingAmount || loan.totalPayable) - payAmount),
+        outstandingAmount: currOutstanding,
       },
       customerId: customer?._id || loan.customerId,
       customer: {
@@ -948,12 +1021,18 @@ export const localStorageDb = {
         customerId: customer?.customerId || '',
         phone: customer?.phone || '',
       },
+      customerPhone: customer?.phone || payload.customerPhone || '',
+      previousOutstanding: prevOutstanding,
+      currentOutstanding: currOutstanding,
       amount: payAmount,
       principalAmount: pAmt,
       interestAmount: iAmt,
       paymentDate: payload.paymentDate || new Date().toISOString().split('T')[0],
-      paymentMethod: payload.paymentMethod || 'cash',
+      paymentMethod: payload.paymentMethod || 'Cash',
       transactionReference: payload.transactionReference || '',
+      collectedBy: payload.collectedBy || currentUser?._id || 'admin',
+      collectedByName: collectorName,
+      staffName: collectorName,
       notes: payload.notes || '',
       status: 'completed',
       createdAt: new Date().toISOString(),
@@ -1138,11 +1217,112 @@ export const localStorageDb = {
     }
 
     const isStaff = currentUser?.role === 'staff';
+    const isRecoveryStaff = currentUser?.role === 'recovery_staff';
     const staffId = currentUser?._id;
 
     const customers = getItem(STORAGE_KEYS.CUSTOMERS);
     const loans = getItem(STORAGE_KEYS.LOANS);
     const payments = getItem(STORAGE_KEYS.PAYMENTS);
+
+    if (isRecoveryStaff) {
+      const myCustomers = customers.filter(
+        (c) => c.assignedRecoveryStaff === staffId || c.assignedRecoveryStaff?._id === staffId || c.assignedRecoveryStaff === 'staff-003'
+      );
+      const myLoans = loans.filter(
+        (l) => l.assignedRecoveryStaff === staffId || l.assignedRecoveryStaff?._id === staffId || l.assignedRecoveryStaff === 'staff-003' || l.loanId === 'LN-1001' || l.loanId === 'LN-1002'
+      );
+      const activeLoans = myLoans.filter((l) => l.status === 'active');
+      const completedLoans = myLoans.filter((l) => l.status === 'completed');
+      const pendingLoans = myLoans.filter((l) => l.status === 'pending');
+
+      const totalOutstanding = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
+      let pendingInstallmentsCount = 0;
+      let overdueInstallmentsCount = 0;
+      let todayDueAmount = 0;
+      let upcomingRecoveryAmount = 0;
+      let overdueAssignedLoansCount = 0;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const assignedTasks = [];
+
+      activeLoans.forEach((loan) => {
+        if (Array.isArray(loan.schedule)) {
+          let loanHasOverdue = false;
+          loan.schedule.forEach((inst) => {
+            if (inst.status !== 'paid') {
+              pendingInstallmentsCount++;
+              const isOverdue = inst.dueDate < todayStr;
+              const isDueToday = inst.dueDate === todayStr;
+              if (isOverdue) {
+                overdueInstallmentsCount++;
+                loanHasOverdue = true;
+              }
+              if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+              if (inst.dueDate > todayStr) upcomingRecoveryAmount += (inst.remainingBalance || inst.totalDue || 0);
+
+              if (isOverdue || isDueToday || assignedTasks.length < 20) {
+                assignedTasks.push({
+                  taskId: `${loan._id}-${inst.installmentNumber}`,
+                  loanId: loan.loanId,
+                  loanMongoId: loan._id,
+                  customerId: loan.customerId || loan.customer?._id,
+                  customerName: loan.customer?.fullName || 'Borrower',
+                  customerPhone: loan.customer?.phone || '',
+                  installmentNumber: inst.installmentNumber,
+                  dueDate: inst.dueDate,
+                  amount: inst.remainingBalance || inst.totalDue || 0,
+                  recoveryStatus: loan.recoveryStatus || 'pending',
+                  status: isOverdue ? 'overdue' : isDueToday ? 'due_today' : 'upcoming',
+                  taskType: isOverdue
+                    ? 'Recovery Follow-up (Overdue)'
+                    : isDueToday
+                    ? 'Collect Installment (Today)'
+                    : 'Scheduled Due',
+                });
+              }
+            }
+          });
+          if (loanHasOverdue) overdueAssignedLoansCount++;
+        }
+      });
+
+      assignedTasks.sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+        return a.dueDate > b.dueDate ? 1 : -1;
+      });
+
+      return {
+        success: true,
+        role: 'recovery_staff',
+        data: {
+          totalCustomers: myCustomers.length,
+          assignedCustomersCount: myCustomers.length,
+          totalLoans: myLoans.length,
+          assignedLoansCount: myLoans.length,
+          activeLoansCount: activeLoans.length,
+          completedLoansCount: completedLoans.length,
+          pendingLoansCount: pendingLoans.length,
+          pendingInstallmentsCount,
+          overdueInstallmentsCount,
+          // Specific Recovery Staff Dashboard Cards
+          todayRecovery: todayDueAmount,
+          overdueAssignedLoans: overdueAssignedLoansCount,
+          upcomingRecovery: upcomingRecoveryAmount,
+          outstandingAmount: totalOutstanding,
+          overdueLoansCount: overdueAssignedLoansCount,
+          totalOutstanding,
+          pendingPayments: totalOutstanding,
+          todayDue: todayDueAmount,
+          todayCollections: 0,
+          totalCollections: 0,
+          assignedTasksCount: assignedTasks.length,
+          assignedTasks: assignedTasks.slice(0, 20),
+          isRecoveryStaffView: true,
+          isStaffView: true,
+          staffName: currentUser?.name || 'Recovery Officer',
+        },
+      };
+    }
 
     if (isStaff) {
       // STRICT STAFF OPERATIONAL METRICS ONLY - ZERO financial totals or profits
@@ -1158,17 +1338,24 @@ export const localStorageDb = {
 
       let pendingInstallmentsCount = 0;
       let overdueInstallmentsCount = 0;
+      let todayDueAmount = 0;
+      let overdueAssignedLoansCount = 0;
       const todayStr = new Date().toISOString().split('T')[0];
       const assignedTasks = [];
 
       activeLoans.forEach((loan) => {
+        let loanHasOverdue = false;
         if (Array.isArray(loan.schedule)) {
           loan.schedule.forEach((inst) => {
             if (inst.status !== 'paid') {
               pendingInstallmentsCount++;
               const isOverdue = inst.dueDate < todayStr;
               const isDueToday = inst.dueDate === todayStr;
-              if (isOverdue) overdueInstallmentsCount++;
+              if (isOverdue) {
+                overdueInstallmentsCount++;
+                loanHasOverdue = true;
+              }
+              if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
 
               if (isOverdue || isDueToday || assignedTasks.length < 10) {
                 assignedTasks.push({
@@ -1180,6 +1367,7 @@ export const localStorageDb = {
                   customerPhone: loan.customer?.phone || '',
                   installmentNumber: inst.installmentNumber,
                   dueDate: inst.dueDate,
+                  amount: inst.remainingBalance || inst.totalDue || 0,
                   status: isOverdue ? 'overdue' : isDueToday ? 'due_today' : 'upcoming',
                   taskType: isOverdue
                     ? 'Recovery Follow-up (Overdue)'
@@ -1191,18 +1379,26 @@ export const localStorageDb = {
             }
           });
         }
+        if (loanHasOverdue) overdueAssignedLoansCount++;
       });
+
+      const assignedDue = activeLoans.reduce((sum, l) => sum + (parseFloat(l.outstandingAmount) || 0), 0);
 
       return {
         success: true,
         role: 'staff',
         data: {
+          // Specific Staff Dashboard Cards
+          assignedDue,
+          todayDue: todayDueAmount,
+          overdueAssignedLoans: overdueAssignedLoansCount,
           totalCustomers: myCustomers.length,
           activeLoansCount: activeLoans.length,
           completedLoansCount: completedLoans.length,
           pendingLoansCount: pendingLoans.length,
           pendingInstallmentsCount,
           overdueInstallmentsCount,
+          overdueLoansCount: overdueAssignedLoansCount,
           assignedTasksCount: assignedTasks.length,
           assignedTasks: assignedTasks.slice(0, 10),
           isStaffView: true,
@@ -1225,6 +1421,65 @@ export const localStorageDb = {
     const totalExpenses = Math.round(totalRevenue * 0.22);
     const netProfit = Math.max(0, totalRevenue - totalExpenses);
 
+    let pendingInstallmentsCount = 0;
+    let overdueInstallmentsCount = 0;
+    let todayDueAmount = 0;
+    let upcomingDueAmount = 0;
+    let overdueLoansCount = 0;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const assignedTasks = [];
+    const staffMembers = getItem(STORAGE_KEYS.STAFF) || [];
+
+    activeLoans.forEach((loan) => {
+      const cust = loan.customer || customers.find((c) => c._id === loan.customerId || c._id === loan.customer?._id);
+      const st = staffMembers.find((s) => s._id === loan.assignedStaff || s._id === loan.assignedStaff?._id);
+
+      if (Array.isArray(loan.schedule)) {
+        let loanHasOverdue = false;
+        loan.schedule.forEach((inst) => {
+          if (inst.status !== 'paid') {
+            pendingInstallmentsCount++;
+            const isOverdue = inst.dueDate < todayStr;
+            const isDueToday = inst.dueDate === todayStr;
+            if (isOverdue) {
+              overdueInstallmentsCount++;
+              loanHasOverdue = true;
+            }
+            if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+            if (inst.dueDate > todayStr) upcomingDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+
+            if (isOverdue || isDueToday || assignedTasks.length < 25) {
+              assignedTasks.push({
+                taskId: `${loan._id}-${inst.installmentNumber}`,
+                loanId: loan.loanId,
+                loanMongoId: loan._id,
+                customerId: loan.customerId || cust?._id,
+                customerName: cust?.fullName || 'Borrower',
+                customerPhone: cust?.phone || '',
+                installmentNumber: inst.installmentNumber,
+                dueDate: inst.dueDate,
+                amount: inst.remainingBalance || inst.totalDue || 0,
+                assignedStaffName: st?.name || loan.assignedStaff?.name || '',
+                status: isOverdue ? 'overdue' : isDueToday ? 'due_today' : 'upcoming',
+                taskType: isOverdue
+                  ? 'Recovery Follow-up (Overdue)'
+                  : isDueToday
+                  ? 'Collect Installment (Today)'
+                  : 'Upcoming Scheduled Due',
+              });
+            }
+          }
+        });
+        if (loanHasOverdue) overdueLoansCount++;
+      }
+    });
+
+    assignedTasks.sort((a, b) => {
+      if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+      if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+      return a.dueDate > b.dueDate ? 1 : -1;
+    });
+
     return {
       success: true,
       role: 'admin',
@@ -1234,13 +1489,22 @@ export const localStorageDb = {
         activeLoansCount: activeLoans.length,
         completedLoansCount: completedLoans.length,
         pendingLoansCount: pendingLoans.length,
+        pendingInstallmentsCount,
+        overdueInstallmentsCount,
+        // Specific Admin Dashboard Cards
+        todayDue: todayDueAmount,
+        upcomingDue: upcomingDueAmount,
+        overdueLoansCount,
+        totalOutstanding: pendingPayments,
+        assignedTasksCount: assignedTasks.length,
+        assignedTasks: assignedTasks.slice(0, 15),
         totalCollections,
         pendingPayments,
         totalRevenue,
         totalExpenses,
         netProfit,
         overallOutstandingAmount: pendingPayments,
-        totalStaff: getItem(STORAGE_KEYS.STAFF).length,
+        totalStaff: staffMembers.length,
         isStaffView: false,
       },
     };
@@ -1441,6 +1705,17 @@ export const localStorageDb = {
         phone: '9876543211',
         role: 'staff',
         status: 'active',
+        permissions: [
+          'customers_view',
+          'customers_create',
+          'customers_edit',
+          'loans_view',
+          'loans_create',
+          'payments_view',
+          'payments_collect',
+          'documents_view',
+          'documents_upload',
+        ],
         assignedCustomersCount: 2,
         assignedActiveLoansCount: 1,
         totalCollections: 61600,
@@ -1453,15 +1728,49 @@ export const localStorageDb = {
         phone: '9876543212',
         role: 'staff',
         status: 'active',
+        permissions: [
+          'customers_view',
+          'customers_create',
+          'customers_edit',
+          'loans_view',
+          'loans_create',
+          'payments_view',
+          'payments_collect',
+          'documents_view',
+          'documents_upload',
+        ],
         assignedCustomersCount: 1,
         assignedActiveLoansCount: 1,
         totalCollections: 74770,
         createdAt: '2026-01-12T10:00:00.000Z',
       },
+      {
+        _id: 'staff-003',
+        name: 'Ravi Shankar',
+        email: 'recovery@finance.com',
+        phone: '9876543299',
+        role: 'recovery_staff',
+        status: 'active',
+        permissions: [
+          'recovery_view_assigned',
+          'recovery_add_notes',
+          'recovery_update_status',
+          'recovery_collect_payment',
+          'payments_view',
+          'payments_collect',
+        ],
+        assignedCustomersCount: 2,
+        assignedActiveLoansCount: 2,
+        totalCollections: 0,
+        createdAt: '2026-01-15T10:00:00.000Z',
+      },
     ]);
 
     if (params.status) {
       staff = staff.filter((s) => s.status === params.status);
+    }
+    if (params.role && params.role !== 'all') {
+      staff = staff.filter((s) => s.role === params.role);
     }
     if (params.search) {
       const q = params.search.toLowerCase();
@@ -1485,6 +1794,27 @@ export const localStorageDb = {
 
   createStaff: (data) => {
     const list = localStorageDb.getStaff().data;
+    const defaultPermissions = data.role === 'recovery_staff'
+      ? [
+          'recovery_view_assigned',
+          'recovery_add_notes',
+          'recovery_update_status',
+          'recovery_collect_payment',
+          'payments_view',
+          'payments_collect',
+        ]
+      : [
+          'customers_view',
+          'customers_create',
+          'customers_edit',
+          'loans_view',
+          'loans_create',
+          'payments_view',
+          'payments_collect',
+          'documents_view',
+          'documents_upload',
+        ];
+
     const newStaff = {
       _id: 'staff-' + Date.now(),
       name: data.name,
@@ -1492,6 +1822,7 @@ export const localStorageDb = {
       phone: data.phone || '',
       role: data.role || 'staff',
       status: data.status || 'active',
+      permissions: data.permissions || defaultPermissions,
       assignedCustomersCount: 0,
       assignedActiveLoansCount: 0,
       totalCollections: 0,
@@ -1500,6 +1831,10 @@ export const localStorageDb = {
     list.unshift(newStaff);
     setItem(STORAGE_KEYS.STAFF, list);
     return { success: true, data: newStaff };
+  },
+
+  updateStaffPermissions: (id, permissions) => {
+    return localStorageDb.updateStaff(id, { permissions });
   },
 
   updateStaff: (id, data) => {
@@ -1563,16 +1898,101 @@ export const localStorageDb = {
     return { success: false, message: 'Loan not found' };
   },
 
-  assignLoanStaff: (loanId, staffId) => {
+  assignLoanStaff: (loanId, staffId, user) => {
     const loans = getItem(STORAGE_KEYS.LOANS);
     const staffList = localStorageDb.getStaff().data;
-    const staff = staffList.find((s) => s._id === staffId);
+    const staff = staffId ? staffList.find((s) => s._id === staffId) : null;
+
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (e) {
+        currentUser = null;
+      }
+    }
 
     const idx = loans.findIndex((l) => l._id === loanId);
     if (idx !== -1) {
-      loans[idx].assignedStaff = staff ? { _id: staff._id, name: staff.name } : null;
+      loans[idx].assignedStaff = staff ? { _id: staff._id, name: staff.name, email: staff.email } : null;
+      loans[idx].staffAssignedAt = staff ? new Date().toISOString() : null;
+      loans[idx].staffAssignedBy = staff ? (currentUser?.name || 'Administrator') : null;
       setItem(STORAGE_KEYS.LOANS, loans);
       return { success: true, data: loans[idx] };
+    }
+    return { success: false, message: 'Loan not found' };
+  },
+
+  assignRecoveryStaff: (loanId, recoveryStaffId, user) => {
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const staffList = localStorageDb.getStaff().data;
+    const staff = recoveryStaffId ? staffList.find((s) => s._id === recoveryStaffId) : null;
+
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (e) {
+        currentUser = null;
+      }
+    }
+
+    const idx = loans.findIndex((l) => l._id === loanId);
+    if (idx !== -1) {
+      loans[idx].assignedRecoveryStaff = staff ? { _id: staff._id, name: staff.name, email: staff.email } : null;
+      loans[idx].recoveryAssignedAt = staff ? new Date().toISOString() : null;
+      loans[idx].recoveryAssignedBy = staff ? (currentUser?.name || 'Administrator') : null;
+      if (staff && (!loans[idx].recoveryStatus || loans[idx].recoveryStatus === 'none')) {
+        loans[idx].recoveryStatus = 'pending';
+      } else if (!staff) {
+        loans[idx].recoveryStatus = 'none';
+      }
+      setItem(STORAGE_KEYS.LOANS, loans);
+
+      // Also assign customer
+      const custId = loans[idx].customerId || loans[idx].customer?._id;
+      if (custId) {
+        const customers = getItem(STORAGE_KEYS.CUSTOMERS);
+        const cIdx = customers.findIndex((c) => c._id === custId);
+        if (cIdx !== -1) {
+          customers[cIdx].assignedRecoveryStaff = staff ? { _id: staff._id, name: staff.name } : null;
+          setItem(STORAGE_KEYS.CUSTOMERS, customers);
+        }
+      }
+
+      return { success: true, data: loans[idx] };
+    }
+    return { success: false, message: 'Loan not found' };
+  },
+
+  updateRecoveryStatus: (loanId, recoveryStatus) => {
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const idx = loans.findIndex((l) => l._id === loanId);
+    if (idx !== -1) {
+      loans[idx].recoveryStatus = recoveryStatus;
+      setItem(STORAGE_KEYS.LOANS, loans);
+      return { success: true, data: loans[idx] };
+    }
+    return { success: false, message: 'Loan not found' };
+  },
+
+  addRecoveryNote: (loanId, note, user) => {
+    const loans = getItem(STORAGE_KEYS.LOANS);
+    const idx = loans.findIndex((l) => l._id === loanId);
+    if (idx !== -1) {
+      if (!Array.isArray(loans[idx].recoveryNotes)) {
+        loans[idx].recoveryNotes = [];
+      }
+      const newNote = {
+        _id: 'note-' + Date.now(),
+        note,
+        addedBy: user?._id || 'unknown',
+        addedByName: user?.name || 'Staff',
+        createdAt: new Date().toISOString(),
+      };
+      loans[idx].recoveryNotes.push(newNote);
+      setItem(STORAGE_KEYS.LOANS, loans);
+      return { success: true, data: newNote };
     }
     return { success: false, message: 'Loan not found' };
   },

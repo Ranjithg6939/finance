@@ -10,6 +10,7 @@ import Button from '../../components/common/Button';
 import Loader from '../../components/common/Loader';
 import PaymentSchedule from '../../components/loans/PaymentSchedule';
 import PaymentModal from '../../components/payments/PaymentModal';
+import PaymentReceiptModal from '../../components/payments/PaymentReceiptModal';
 import DocumentUploader from '../../components/documents/DocumentUploader';
 import {
   ArrowLeft,
@@ -26,6 +27,14 @@ import {
   X,
   Trash2,
   AlertTriangle,
+  Receipt,
+  Printer,
+  ShieldCheck,
+  UserX,
+  PhoneCall,
+  MessageSquare,
+  History,
+  Send,
 } from 'lucide-react';
 
 export default function LoanDetails() {
@@ -35,29 +44,53 @@ export default function LoanDetails() {
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';
-  const prefix = isAdmin ? '/admin' : '/staff';
+  const isRecoveryStaff = user?.role === 'recovery_staff';
+  const isNormalStaff = user?.role === 'staff';
+  const prefix = isAdmin ? '/admin' : isRecoveryStaff ? '/recovery' : '/staff';
 
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
-  // Staff Assignment State (Admin Only)
+  // Staff & Recovery Assignment State (Admin Only)
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [staffList, setStaffList] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [selectedRecoveryStaffId, setSelectedRecoveryStaffId] = useState('');
   const [assignSubmitting, setAssignSubmitting] = useState(false);
+
+  // Recovery Status & Notes State
+  const [newRecoveryStatus, setNewRecoveryStatus] = useState('');
+  const [newRecoveryNote, setNewRecoveryNote] = useState('');
+  const [submittingNote, setSubmittingNote] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const fetchLoan = async () => {
     try {
       setLoading(true);
       const res = await loanService.getById(loanId);
-      setLoan(res.data);
-      if (res.data?.assignedStaff?._id) {
-        setSelectedStaffId(res.data.assignedStaff._id);
-      } else if (res.data?.assignedStaff) {
-        setSelectedStaffId(res.data.assignedStaff);
+      const data = res.data;
+      setLoan(data);
+      if (data?.assignedStaff?._id) {
+        setSelectedStaffId(data.assignedStaff._id);
+      } else if (data?.assignedStaff) {
+        setSelectedStaffId(data.assignedStaff);
+      } else {
+        setSelectedStaffId('');
       }
+
+      if (data?.assignedRecoveryStaff?._id) {
+        setSelectedRecoveryStaffId(data.assignedRecoveryStaff._id);
+      } else if (data?.assignedRecoveryStaff) {
+        setSelectedRecoveryStaffId(data.assignedRecoveryStaff);
+      } else {
+        setSelectedRecoveryStaffId('');
+      }
+
+      setNewRecoveryStatus(data?.recoveryStatus || 'pending');
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to load loan record', 'error');
     } finally {
@@ -84,13 +117,44 @@ export default function LoanDetails() {
     try {
       setAssignSubmitting(true);
       await loanService.assignStaff(loan._id, selectedStaffId || null);
-      showToast('Loan staff assignment updated successfully', 'success');
+      await loanService.assignRecoveryStaff(loan._id, selectedRecoveryStaffId || null);
+      showToast('Loan staff assignments updated successfully', 'success');
       setIsAssignModalOpen(false);
       fetchLoan();
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to assign staff', 'error');
+      showToast(err.response?.data?.message || 'Failed to update assignments', 'error');
     } finally {
       setAssignSubmitting(false);
+    }
+  };
+
+  const handleUpdateRecoveryStatus = async (status) => {
+    try {
+      setUpdatingStatus(true);
+      await loanService.updateRecoveryStatus(loan._id, status);
+      setNewRecoveryStatus(status);
+      showToast(`Recovery status updated to ${status.replace('_', ' ')}`, 'success');
+      fetchLoan();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to update recovery status', 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleAddRecoveryNote = async (e) => {
+    e.preventDefault();
+    if (!newRecoveryNote.trim()) return;
+    try {
+      setSubmittingNote(true);
+      await loanService.addRecoveryNote(loan._id, newRecoveryNote.trim());
+      showToast('Recovery note recorded successfully', 'success');
+      setNewRecoveryNote('');
+      fetchLoan();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to add recovery note', 'error');
+    } finally {
+      setSubmittingNote(false);
     }
   };
 
@@ -116,6 +180,23 @@ export default function LoanDetails() {
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete loan', 'error');
     }
+  };
+
+  const handleViewReceipt = (payment) => {
+    setSelectedReceipt({
+      ...payment,
+      receiptNumber: payment.receiptNumber || `REC-${payment.paymentId}`,
+      customerName: loan.customer?.fullName || loan.customerName,
+      customerPhone: payment.customerPhone || loan.customer?.phone,
+      loanId: loan.loanId,
+      paymentAmount: payment.amount,
+      previousOutstanding: payment.previousOutstanding ?? (loan.outstandingAmount + payment.amount),
+      currentOutstanding: payment.currentOutstanding ?? loan.outstandingAmount,
+      paymentMethod: payment.paymentMethod || 'Cash',
+      collectedBy: payment.collectedByName || payment.recoveryStaffName || payment.staffName || 'Staff',
+      notes: payment.notes || '',
+    });
+    setIsReceiptModalOpen(true);
   };
 
   if (loading) {
@@ -304,12 +385,254 @@ export default function LoanDetails() {
         </div>
       </div>
 
+      {/* LOAN ASSIGNMENT & AUDIT CARD */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-emerald-600" />
+              Loan Assignment & Governance
+            </h3>
+            <p className="text-[11px] text-slate-400">Field staff and recovery officer assignments with admin audit trail</p>
+          </div>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleOpenAssignModal}
+              className="flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <UserCheck className="w-3.5 h-3.5" /> Manage Assignments
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Normal Staff Assignment */}
+          <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                Assigned Staff (Field Officer)
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${loan.assignedStaff ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>
+                {loan.assignedStaff ? 'Assigned' : 'Unassigned'}
+              </span>
+            </div>
+            <p className="text-sm font-bold text-slate-900">
+              {loan.assignedStaff?.name || (typeof loan.assignedStaff === 'string' ? loan.assignedStaff : 'None')}
+            </p>
+            {loan.assignedStaff?.email && (
+              <p className="text-[11px] text-slate-500">{loan.assignedStaff.email}</p>
+            )}
+            <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 space-y-0.5">
+              <p>
+                <strong className="text-slate-600">Assignment Date: </strong>
+                {loan.staffAssignedAt ? formatDate(loan.staffAssignedAt) : 'N/A'}
+              </p>
+              <p>
+                <strong className="text-slate-600">Assigned By: </strong>
+                {loan.staffAssignedBy?.name || (typeof loan.staffAssignedBy === 'string' ? loan.staffAssignedBy : 'Administrator')}
+              </p>
+            </div>
+          </div>
+
+          {/* Recovery Staff Assignment */}
+          <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                Assigned Recovery Staff
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${loan.assignedRecoveryStaff ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+                {loan.assignedRecoveryStaff ? 'Assigned' : 'Unassigned'}
+              </span>
+            </div>
+            <p className="text-sm font-bold text-slate-900">
+              {loan.assignedRecoveryStaff?.name || (typeof loan.assignedRecoveryStaff === 'string' ? loan.assignedRecoveryStaff : 'None')}
+            </p>
+            {loan.assignedRecoveryStaff?.email && (
+              <p className="text-[11px] text-slate-500">{loan.assignedRecoveryStaff.email}</p>
+            )}
+            <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 space-y-0.5">
+              <p>
+                <strong className="text-slate-600">Assignment Date: </strong>
+                {loan.recoveryAssignedAt ? formatDate(loan.recoveryAssignedAt) : 'N/A'}
+              </p>
+              <p>
+                <strong className="text-slate-600">Assigned By: </strong>
+                {loan.recoveryAssignedBy?.name || (typeof loan.recoveryAssignedBy === 'string' ? loan.recoveryAssignedBy : 'Administrator')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* RECOVERY STATUS & FOLLOW-UP SYSTEM */}
+      {(isAdmin || isRecoveryStaff) && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                Recovery Follow-up & Status Tracker
+              </h3>
+              <p className="text-[11px] text-slate-400">Log borrower communications, promise-to-pay updates, and recovery status</p>
+            </div>
+
+            {/* Quick Status Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-600">Status:</span>
+              <select
+                value={loan.recoveryStatus || 'pending'}
+                onChange={(e) => handleUpdateRecoveryStatus(e.target.value)}
+                disabled={updatingStatus}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="pending">Pending</option>
+                <option value="contacted">Contacted</option>
+                <option value="promise_to_pay">Promise to Pay</option>
+                <option value="partially_paid">Partially Paid</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+                <option value="unable_to_contact">Unable to Contact</option>
+                <option value="follow_up_required">Follow-up Required</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Add Recovery Note Form */}
+          <form onSubmit={handleAddRecoveryNote} className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">Add Recovery Note / Interaction Log</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newRecoveryNote}
+                onChange={(e) => setNewRecoveryNote(e.target.value)}
+                placeholder="E.g., Called borrower Ramesh; promised to pay ₹5,000 on Friday via UPI..."
+                className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-500 focus:outline-none"
+              />
+              <Button type="submit" size="sm" disabled={submittingNote || !newRecoveryNote.trim()} className="flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5" />
+                {submittingNote ? 'Saving...' : 'Add Note'}
+              </Button>
+            </div>
+          </form>
+
+          {/* Recovery History Timeline */}
+          <div className="pt-2">
+            <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+              <History className="w-3.5 h-3.5 text-slate-400" />
+              Recovery Interaction History
+            </h4>
+            {loan.recoveryNotes && loan.recoveryNotes.length > 0 ? (
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                {loan.recoveryNotes.map((noteItem, idx) => (
+                  <div key={noteItem._id || idx} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                      <span className="font-semibold text-slate-700">
+                        {noteItem.addedByName || noteItem.addedBy || 'Staff'}
+                      </span>
+                      <span>{noteItem.createdAt ? formatDate(noteItem.createdAt) : ''}</span>
+                    </div>
+                    <p className="text-slate-700">{noteItem.note}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                No recovery interaction notes recorded yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* COMPLETE PAYMENT HISTORY TABLE */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-emerald-600" />
+              Complete Payment History
+            </h3>
+            <p className="text-[11px] text-slate-400">All recorded payments, verified receipts, and outstanding timelines</p>
+          </div>
+          <span className="text-xs text-slate-500 font-medium">
+            {loan.payments?.length || 0} Payments Recorded
+          </span>
+        </div>
+
+        {loan.payments && loan.payments.length > 0 ? (
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-3.5 py-2.5">Date</th>
+                  <th className="px-3.5 py-2.5">Receipt No</th>
+                  <th className="px-3.5 py-2.5">Amount</th>
+                  <th className="px-3.5 py-2.5">Method</th>
+                  <th className="px-3.5 py-2.5">Collected By</th>
+                  <th className="px-3.5 py-2.5">Remaining Balance</th>
+                  <th className="px-3.5 py-2.5 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {loan.payments.map((p, pIdx) => {
+                  const receiptNo = p.receiptNumber || `REC-${p.paymentId || p._id?.substring(0, 8)}`;
+                  const collector = p.collectedByName || p.recoveryStaffName || p.staffName || 'Staff';
+                  const balance = p.currentOutstanding ?? (p.loan?.outstandingAmount ?? 'N/A');
+
+                  return (
+                    <tr key={p._id || pIdx} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3.5 py-2.5 font-medium text-slate-800">
+                        {formatDate(p.paymentDate || p.createdAt)}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-mono font-semibold text-emerald-600">
+                        {receiptNo}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900">
+                        {formatCurrency(p.amount)}
+                      </td>
+                      <td className="px-3.5 py-2.5 uppercase text-[11px] font-medium text-slate-700">
+                        <span className="px-2 py-0.5 rounded bg-slate-100">{p.paymentMethod || 'Cash'}</span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-700">
+                        {collector}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                        {typeof balance === 'number' ? formatCurrency(balance) : balance}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center">
+                        <Button
+                          size="xs"
+                          variant="secondary"
+                          onClick={() => handleViewReceipt(p)}
+                          className="inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          View Receipt
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-8 text-center text-slate-400 text-xs bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+            No payments have been recorded for this loan yet.
+          </div>
+        )}
+      </div>
+
       {/* Payment Schedule Section */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Amortization & Payment Schedule</h3>
-            <p className="text-[11px] text-slate-400">Installments generated by calculation engine</p>
+            <p className="text-[11px] text-slate-400">Installments with real-time due dates, days remaining, and overdue status</p>
           </div>
           <span className="text-xs text-slate-500 font-medium">
             {loan.schedule?.length || 0} Installments
@@ -318,13 +641,13 @@ export default function LoanDetails() {
         <PaymentSchedule schedule={loan.schedule} />
       </div>
 
-      {/* Assign Staff Modal (Admin Only) */}
+      {/* Assign Staff & Recovery Staff Modal (Admin Only) */}
       {isAssignModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Assign Staff to Loan</h3>
+                <h3 className="text-base font-bold text-slate-900">Manage Loan Assignments</h3>
                 <p className="text-xs text-slate-500">Loan #{loan.loanId}</p>
               </div>
               <button
@@ -336,20 +659,48 @@ export default function LoanDetails() {
             </div>
 
             <form onSubmit={handleAssignSubmit} className="space-y-4 text-xs">
+              {/* Field Staff Assignment */}
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Select Field Executive</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Staff (Normal Staff / Field Officer)
+                </label>
                 <select
                   value={selectedStaffId}
                   onChange={(e) => setSelectedStaffId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none"
                 >
-                  <option value="">-- Unassigned --</option>
-                  {staffList.map((st) => (
-                    <option key={st._id} value={st._id}>
-                      {st.name} ({st.email})
-                    </option>
-                  ))}
+                  <option value="">-- Remove / No Staff Assigned --</option>
+                  {staffList
+                    .filter((st) => st.role === 'staff' || !st.role)
+                    .map((st) => (
+                      <option key={st._id} value={st._id}>
+                        {st.name} ({st.email})
+                      </option>
+                    ))}
                 </select>
+                <p className="text-[11px] text-slate-400 mt-1">Responsible for standard loan operations.</p>
+              </div>
+
+              {/* Recovery Staff Assignment */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Recovery Staff (Collections Officer)
+                </label>
+                <select
+                  value={selectedRecoveryStaffId}
+                  onChange={(e) => setSelectedRecoveryStaffId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="">-- Remove / No Recovery Staff Assigned --</option>
+                  {staffList
+                    .filter((st) => st.role === 'recovery_staff')
+                    .map((st) => (
+                      <option key={st._id} value={st._id}>
+                        {st.name} ({st.email})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">Responsible for recovery follow-ups and overdue tracking.</p>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
@@ -362,7 +713,7 @@ export default function LoanDetails() {
                   Cancel
                 </Button>
                 <Button type="submit" size="sm" disabled={assignSubmitting}>
-                  {assignSubmitting ? 'Saving...' : 'Save Assignment'}
+                  {assignSubmitting ? 'Saving...' : 'Save Assignments'}
                 </Button>
               </div>
             </form>
@@ -376,9 +727,24 @@ export default function LoanDetails() {
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           loan={loan}
-          onPaymentSuccess={() => {
+          onPaymentSuccess={(newPayment) => {
             fetchLoan();
+            if (newPayment) {
+              handleViewReceipt(newPayment);
+            }
           }}
+        />
+      )}
+
+      {/* Payment Receipt Modal */}
+      {isReceiptModalOpen && selectedReceipt && (
+        <PaymentReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => {
+            setIsReceiptModalOpen(false);
+            setSelectedReceipt(null);
+          }}
+          receipt={selectedReceipt}
         />
       )}
 

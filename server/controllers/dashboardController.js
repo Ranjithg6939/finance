@@ -9,8 +9,133 @@ export const dashboardController = {
   getSummary: async (req, res) => {
     try {
       const isStaff = req.user.role === 'staff';
-      const staffId = req.user._id;
+      const isRecoveryStaff = req.user.role === 'recovery_staff';
+      const userId = req.user._id;
       const todayStr = new Date().toISOString().split('T')[0];
+
+      if (isRecoveryStaff) {
+        // STRICT RECOVERY STAFF METRICS (Zero profit, assigned cases only)
+        const [
+          myCustomersCount,
+          myLoans,
+          todayPayments,
+          allMyPayments,
+          recentAssignedActivities,
+        ] = await Promise.all([
+          Customer.countDocuments({ assignedRecoveryStaff: userId }),
+          Loan.find({ assignedRecoveryStaff: userId }).populate('customer', 'fullName phone customerId address'),
+          Payment.find({
+            paymentDate: todayStr,
+            status: 'completed',
+            $or: [{ collectedBy: userId }, { recoveryStaff: userId }],
+          }),
+          Payment.find({
+            status: 'completed',
+            $or: [{ collectedBy: userId }, { recoveryStaff: userId }],
+          }),
+          ActivityLog.find({
+            $or: [{ user: userId }, { resource: 'Recovery' }, { resource: 'Loan' }],
+          })
+            .sort({ createdAt: -1 })
+            .limit(10),
+        ]);
+
+        const activeLoans = myLoans.filter((l) => l.status === 'active');
+        const completedLoans = myLoans.filter((l) => l.status === 'completed');
+        const pendingLoans = myLoans.filter((l) => l.status === 'pending');
+
+        const totalOutstanding = activeLoans.reduce((sum, l) => sum + (l.outstandingAmount || 0), 0);
+        const todayCollections = todayPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const totalCollected = allMyPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        let pendingInstallmentsCount = 0;
+        let overdueInstallmentsCount = 0;
+        let todayDueAmount = 0;
+        let upcomingRecoveryAmount = 0;
+        let overdueAssignedLoansCount = 0;
+        const assignedTasks = [];
+
+        for (const loan of activeLoans) {
+          if (!loan.schedule) continue;
+          let loanHasOverdue = false;
+          for (const inst of loan.schedule) {
+            if (inst.status !== 'paid') {
+              pendingInstallmentsCount++;
+              const isOverdue = inst.dueDate < todayStr;
+              const isDueToday = inst.dueDate === todayStr;
+
+              if (isOverdue) {
+                overdueInstallmentsCount++;
+                loanHasOverdue = true;
+              }
+              if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+              if (inst.dueDate > todayStr) upcomingRecoveryAmount += (inst.remainingBalance || inst.totalDue || 0);
+
+              if (isOverdue || isDueToday || assignedTasks.length < 20) {
+                assignedTasks.push({
+                  taskId: `${loan._id}-${inst.installmentNumber}`,
+                  loanId: loan.loanId,
+                  loanMongoId: loan._id,
+                  customerId: loan.customer?._id || loan.customerId,
+                  customerName: loan.customer?.fullName || 'Borrower',
+                  customerPhone: loan.customer?.phone || '',
+                  installmentNumber: inst.installmentNumber,
+                  dueDate: inst.dueDate,
+                  amount: inst.remainingBalance || inst.totalDue || 0,
+                  recoveryStatus: loan.recoveryStatus || 'pending',
+                  status: isOverdue ? 'overdue' : (isDueToday ? 'due_today' : 'upcoming'),
+                  taskType: isOverdue
+                    ? 'Recovery Follow-up (Overdue)'
+                    : isDueToday
+                    ? 'Collect Installment (Today)'
+                    : 'Scheduled Due',
+                });
+              }
+            }
+          }
+          if (loanHasOverdue) overdueAssignedLoansCount++;
+        }
+
+        // Sort tasks: overdue first, then due today, then upcoming
+        assignedTasks.sort((a, b) => {
+          if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+          if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+          return a.dueDate > b.dueDate ? 1 : -1;
+        });
+
+        return res.status(200).json({
+          success: true,
+          role: 'recovery_staff',
+          data: {
+            totalCustomers: myCustomersCount,
+            assignedCustomersCount: myCustomersCount,
+            totalLoans: myLoans.length,
+            assignedLoansCount: myLoans.length,
+            activeLoansCount: activeLoans.length,
+            completedLoansCount: completedLoans.length,
+            pendingLoansCount: pendingLoans.length,
+            pendingInstallmentsCount,
+            overdueInstallmentsCount,
+            // Specific Recovery Dashboard Cards
+            todayRecovery: todayDueAmount,
+            overdueAssignedLoans: overdueAssignedLoansCount,
+            upcomingRecovery: upcomingRecoveryAmount,
+            outstandingAmount: totalOutstanding,
+            overdueLoansCount: overdueAssignedLoansCount,
+            totalOutstanding,
+            pendingPayments: totalOutstanding,
+            todayDue: todayDueAmount,
+            todayCollections,
+            totalCollections: totalCollected,
+            assignedTasksCount: assignedTasks.length,
+            assignedTasks: assignedTasks.slice(0, 20),
+            recentActivities: recentAssignedActivities,
+            isRecoveryStaffView: true,
+            isStaffView: true,
+            staffName: req.user.name,
+          },
+        });
+      }
 
       if (isStaff) {
         // STRICT STAFF OPERATIONAL METRICS ONLY
@@ -20,10 +145,10 @@ export const dashboardController = {
           myLoans,
           recentAssignedActivities,
         ] = await Promise.all([
-          Customer.countDocuments({ assignedStaff: staffId }),
-          Loan.find({ assignedStaff: staffId }).populate('customer', 'fullName phone customerId'),
+          Customer.countDocuments({ assignedStaff: userId }),
+          Loan.find({ assignedStaff: userId }).populate('customer', 'fullName phone customerId'),
           ActivityLog.find({
-            $or: [{ user: staffId }, { resource: 'Customer' }, { resource: 'Loan' }],
+            $or: [{ user: userId }, { resource: 'Customer' }, { resource: 'Loan' }],
           })
             .sort({ createdAt: -1 })
             .limit(10),
@@ -36,17 +161,24 @@ export const dashboardController = {
         // Calculate operational installment counts and actionable recovery tasks
         let pendingInstallmentsCount = 0;
         let overdueInstallmentsCount = 0;
+        let todayDueAmount = 0;
+        let overdueAssignedLoansCount = 0;
         const assignedTasks = [];
 
         for (const loan of activeLoans) {
           if (!loan.schedule) continue;
+          let loanHasOverdue = false;
           for (const inst of loan.schedule) {
             if (inst.status !== 'paid') {
               pendingInstallmentsCount++;
               const isOverdue = inst.dueDate < todayStr;
               const isDueToday = inst.dueDate === todayStr;
 
-              if (isOverdue) overdueInstallmentsCount++;
+              if (isOverdue) {
+                overdueInstallmentsCount++;
+                loanHasOverdue = true;
+              }
+              if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
 
               if (isOverdue || isDueToday || assignedTasks.length < 15) {
                 assignedTasks.push({
@@ -58,6 +190,7 @@ export const dashboardController = {
                   customerPhone: loan.customer?.phone || '',
                   installmentNumber: inst.installmentNumber,
                   dueDate: inst.dueDate,
+                  amount: inst.remainingBalance || inst.totalDue || 0,
                   status: isOverdue ? 'overdue' : (isDueToday ? 'due_today' : 'upcoming'),
                   taskType: isOverdue
                     ? 'Recovery Follow-up (Overdue)'
@@ -68,7 +201,10 @@ export const dashboardController = {
               }
             }
           }
+          if (loanHasOverdue) overdueAssignedLoansCount++;
         }
+
+        const assignedDue = activeLoans.reduce((acc, l) => acc + (l.outstandingAmount || 0), 0);
 
         // Sort tasks: overdue first, then due today, then upcoming
         assignedTasks.sort((a, b) => {
@@ -82,6 +218,10 @@ export const dashboardController = {
           role: 'staff',
           data: {
             // Strictly operational metrics
+            assignedDue,
+            todayDue: todayDueAmount,
+            overdueAssignedLoans: overdueAssignedLoansCount,
+            overdueLoansCount: overdueAssignedLoansCount,
             totalCustomers: myCustomersCount,
             activeLoansCount: activeLoans.length,
             completedLoansCount: completedLoans.length,
@@ -89,7 +229,7 @@ export const dashboardController = {
             pendingInstallmentsCount,
             overdueInstallmentsCount,
             assignedTasksCount: assignedTasks.length,
-            assignedTasks: assignedTasks.slice(0, 10),
+            assignedTasks: assignedTasks.slice(0, 15),
             recentActivities: recentAssignedActivities,
             isStaffView: true,
             staffName: req.user.name,
@@ -104,16 +244,18 @@ export const dashboardController = {
         allPayments,
         todayPayments,
         totalStaff,
+        totalRecoveryStaff,
         recentActivities,
         staffList,
       ] = await Promise.all([
         Customer.countDocuments(),
-        Loan.find(),
+        Loan.find().populate('customer', 'fullName phone customerId').populate('assignedStaff', 'name email').populate('assignedRecoveryStaff', 'name email'),
         Payment.find({ status: 'completed' }),
         Payment.find({ paymentDate: todayStr, status: 'completed' }),
         User.countDocuments({ role: 'staff' }),
+        User.countDocuments({ role: 'recovery_staff' }),
         ActivityLog.find().sort({ createdAt: -1 }).limit(10),
-        User.find({ role: 'staff' }).select('name email phone status'),
+        User.find({ role: { $in: ['staff', 'recovery_staff'] } }).select('name email phone role status permissions'),
       ]);
 
       const activeLoans = allLoans.filter((l) => l.status === 'active');
@@ -128,6 +270,62 @@ export const dashboardController = {
       const totalRevenue = allLoans.reduce((acc, l) => acc + (l.totalInterest || 0) + (l.processingFee || 0), 0);
       const totalExpenses = Math.round(totalRevenue * 0.22);
       const netProfit = Math.max(0, totalRevenue - totalExpenses);
+
+      // Calculate company-wide operational installment counts and actionable recovery tasks
+      let pendingInstallmentsCount = 0;
+      let overdueInstallmentsCount = 0;
+      let todayDueAmount = 0;
+      let upcomingDueAmount = 0;
+      let overdueLoansCount = 0;
+      const assignedTasks = [];
+
+      for (const loan of activeLoans) {
+        if (!loan.schedule) continue;
+        let loanHasOverdue = false;
+        for (const inst of loan.schedule) {
+          if (inst.status !== 'paid') {
+            pendingInstallmentsCount++;
+            const isOverdue = inst.dueDate < todayStr;
+            const isDueToday = inst.dueDate === todayStr;
+
+            if (isOverdue) {
+              overdueInstallmentsCount++;
+              loanHasOverdue = true;
+            }
+            if (isDueToday) todayDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+            if (inst.dueDate > todayStr) upcomingDueAmount += (inst.remainingBalance || inst.totalDue || 0);
+
+            if (isOverdue || isDueToday || assignedTasks.length < 25) {
+              assignedTasks.push({
+                taskId: `${loan._id}-${inst.installmentNumber}`,
+                loanId: loan.loanId,
+                loanMongoId: loan._id,
+                customerId: loan.customer?._id || loan.customerId,
+                customerName: loan.customer?.fullName || 'Borrower',
+                customerPhone: loan.customer?.phone || '',
+                installmentNumber: inst.installmentNumber,
+                dueDate: inst.dueDate,
+                amount: inst.remainingBalance || inst.totalDue || 0,
+                assignedStaffName: loan.assignedStaff?.name || '',
+                status: isOverdue ? 'overdue' : (isDueToday ? 'due_today' : 'upcoming'),
+                taskType: isOverdue
+                  ? 'Recovery Follow-up (Overdue)'
+                  : isDueToday
+                  ? 'Collect Installment (Today)'
+                  : 'Upcoming Scheduled Due',
+              });
+            }
+          }
+        }
+        if (loanHasOverdue) overdueLoansCount++;
+      }
+
+      // Sort tasks: overdue first, then due today, then upcoming
+      assignedTasks.sort((a, b) => {
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+        return a.dueDate > b.dueDate ? 1 : -1;
+      });
 
       // Staff Performance for Admin
       const staffPerformance = await Promise.all(
@@ -161,6 +359,14 @@ export const dashboardController = {
           activeLoansCount: activeLoans.length,
           completedLoansCount: completedLoans.length,
           pendingLoansCount: pendingLoans.length,
+          pendingInstallmentsCount,
+          overdueInstallmentsCount,
+          todayDue: todayDueAmount,
+          upcomingDue: upcomingDueAmount,
+          overdueLoansCount,
+          totalOutstanding: pendingPayments,
+          assignedTasksCount: assignedTasks.length,
+          assignedTasks: assignedTasks.slice(0, 15),
           totalCollections,
           todayCollections,
           pendingPayments,
@@ -169,6 +375,7 @@ export const dashboardController = {
           netProfit,
           overallOutstandingAmount: pendingPayments,
           totalStaff,
+          totalRecoveryStaff,
           staffPerformance,
           recentActivities,
           isStaffView: false,
@@ -311,9 +518,12 @@ export const dashboardController = {
   getUpcomingPayments: async (req, res) => {
     try {
       const isStaff = req.user.role === 'staff';
+      const isRecoveryStaff = req.user.role === 'recovery_staff';
       const loanQuery = { status: 'active' };
 
-      if (isStaff) {
+      if (isRecoveryStaff) {
+        loanQuery.assignedRecoveryStaff = req.user._id;
+      } else if (isStaff) {
         loanQuery.assignedStaff = req.user._id;
       }
 

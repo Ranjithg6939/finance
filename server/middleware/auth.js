@@ -91,6 +91,39 @@ export const requireRole = (...allowedRoles) => {
 };
 
 /**
+ * Permission-Based Access Control Middleware:
+ * Checks if the user's customized permissions array contains one of the required permissions.
+ * Admins always bypass this check.
+ */
+export const requirePermission = (...requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    // Admin has full bypass
+    if (req.user.role === 'admin') {
+      return next();
+    }
+
+    const userPerms = req.user.permissions || [];
+    const hasAny = requiredPermissions.some((p) => userPerms.includes(p));
+
+    if (!hasAny) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: Missing required permission for this action',
+      });
+    }
+
+    next();
+  };
+};
+
+/**
  * Activity Log helper to record user actions into MongoDB
  */
 export const recordActivity = async (req, action, resource, resourceId = '', details = {}) => {

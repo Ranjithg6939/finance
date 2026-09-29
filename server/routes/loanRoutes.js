@@ -10,9 +10,14 @@ router.get('/:id', requireAuth, loanController.getLoanById);
 router.post('/', requireAuth, loanController.createLoan);
 router.put('/:id', requireAuth, loanController.updateLoan);
 
+// Recovery Staff operations
+router.post('/:id/recovery-note', requireAuth, loanController.addRecoveryNote);
+router.patch('/:id/recovery-status', requireAuth, loanController.updateRecoveryStatus);
+
 // Admin-only operations
 router.patch('/:id/status', requireAuth, requireRole('admin'), loanController.changeLoanStatus);
 router.patch('/:id/assign', requireAuth, requireRole('admin'), loanController.assignStaff);
+router.patch('/:id/assign-recovery', requireAuth, requireRole('admin'), loanController.assignRecoveryStaff);
 router.delete('/:id', requireAuth, requireRole('admin'), loanController.deleteLoan);
 
 export default router;

@@ -115,6 +115,57 @@ const loanSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    staffAssignedAt: {
+      type: Date,
+      default: null,
+    },
+    staffAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    // Recovery Staff RBAC Assignment
+    assignedRecoveryStaff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    recoveryAssignedAt: {
+      type: Date,
+      default: null,
+    },
+    recoveryAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    recoveryStatus: {
+      type: String,
+      enum: [
+        'none',
+        'pending',
+        'contacted',
+        'promise_to_pay',
+        'partially_paid',
+        'paid',
+        'overdue',
+        'unable_to_contact',
+        'follow_up_required',
+        'in_progress',
+        'recovered',
+        'escalated',
+        'legal_action',
+      ],
+      default: 'none',
+    },
+    recoveryNotes: [
+      {
+        note: { type: String, required: true },
+        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        addedByName: { type: String, default: '' },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -132,6 +183,7 @@ const loanSchema = new mongoose.Schema(
 );
 
 loanSchema.index({ assignedStaff: 1 });
+loanSchema.index({ assignedRecoveryStaff: 1 });
 loanSchema.index({ customer: 1 });
 loanSchema.index({ status: 1 });
 

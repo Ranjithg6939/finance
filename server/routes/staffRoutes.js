@@ -9,6 +9,7 @@ router.get('/', requireAuth, requireRole('admin'), staffController.getAllStaff);
 router.post('/', requireAuth, requireRole('admin'), staffController.createStaff);
 router.get('/:id', requireAuth, staffController.getStaffById);
 router.put('/:id', requireAuth, requireRole('admin'), staffController.updateStaff);
+router.put('/:id/permissions', requireAuth, requireRole('admin'), staffController.updateStaffPermissions);
 router.patch('/:id/status', requireAuth, requireRole('admin'), staffController.toggleStaffStatus);
 router.post('/:id/reset-password', requireAuth, requireRole('admin'), staffController.resetStaffPassword);
 router.delete('/:id', requireAuth, requireRole('admin'), staffController.deleteStaff);

@@ -24,7 +24,7 @@ export default function ProtectedRoute({ allowedRoles, fallback = 'access-denied
     const userRole = user?.role || 'staff';
     if (!allowedRoles.includes(userRole)) {
       if (fallback === 'redirect') {
-        const dest = userRole === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
+        const dest = userRole === 'admin' ? '/admin/dashboard' : (userRole === 'recovery_staff' ? '/recovery/dashboard' : '/staff/dashboard');
         return <Navigate to={dest} replace />;
       }
       return <AccessDenied />;

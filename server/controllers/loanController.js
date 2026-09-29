@@ -112,15 +112,23 @@ export const loanController = {
   // GET /api/loans
   getAllLoans: async (req, res) => {
     try {
-      const { status, customerId, staffId, search, page = 1, limit = 50 } = req.query;
+      const { status, customerId, staffId, recoveryStaffId, search, filter, page = 1, limit = 50 } = req.query;
       const query = {};
 
       // DATA-LEVEL AUTHORIZATION:
-      // Staff only sees loans assigned to them!
+      // Staff only sees loans assigned to them, Recovery Staff sees recovery loans assigned to them
       if (req.user.role === 'staff') {
         query.assignedStaff = req.user._id;
-      } else if (staffId) {
-        query.assignedStaff = staffId;
+      } else if (req.user.role === 'recovery_staff') {
+        query.assignedRecoveryStaff = req.user._id;
+      } else {
+        if (filter === 'my_loans') {
+          query.assignedStaff = { $ne: null };
+        } else if (filter === 'my_recovery') {
+          query.assignedRecoveryStaff = { $ne: null };
+        }
+        if (staffId) query.assignedStaff = staffId;
+        if (recoveryStaffId) query.assignedRecoveryStaff = recoveryStaffId;
       }
 
       if (status) {
@@ -139,6 +147,7 @@ export const loanController = {
       const loans = await Loan.find(query)
         .populate('customer', 'fullName customerId phone email')
         .populate('assignedStaff', 'name email phone')
+        .populate('assignedRecoveryStaff', 'name email phone')
         .populate('approvedBy', 'name email')
         .sort({ createdAt: -1 })
         .limit(Number(limit))
@@ -171,6 +180,9 @@ export const loanController = {
       const loan = await Loan.findById(id)
         .populate('customer')
         .populate('assignedStaff', 'name email phone')
+        .populate('staffAssignedBy', 'name email')
+        .populate('assignedRecoveryStaff', 'name email phone')
+        .populate('recoveryAssignedBy', 'name email')
         .populate('approvedBy', 'name email');
 
       if (!loan) {
@@ -178,7 +190,6 @@ export const loanController = {
       }
 
       // DATA-LEVEL AUTHORIZATION:
-      // Staff cannot view loans assigned to other staff
       if (
         req.user.role === 'staff' &&
         (!loan.assignedStaff || loan.assignedStaff._id.toString() !== req.user._id.toString())
@@ -186,6 +197,16 @@ export const loanController = {
         return res.status(403).json({
           success: false,
           message: 'You do not have permission to view this loan record',
+        });
+      }
+
+      if (
+        req.user.role === 'recovery_staff' &&
+        (!loan.assignedRecoveryStaff || loan.assignedRecoveryStaff._id.toString() !== req.user._id.toString())
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to view this recovery loan record',
         });
       }
 
@@ -400,13 +421,18 @@ export const loanController = {
           return res.status(400).json({ success: false, message: 'Invalid staff member selected' });
         }
         loan.assignedStaff = staff._id;
+        loan.staffAssignedAt = new Date();
+        loan.staffAssignedBy = req.user._id;
         staffName = staff.name;
       } else {
         loan.assignedStaff = null;
+        loan.staffAssignedAt = null;
+        loan.staffAssignedBy = null;
       }
 
       await loan.save();
       await loan.populate('assignedStaff', 'name email phone');
+      await loan.populate('staffAssignedBy', 'name email');
 
       await recordActivity(
         req,
@@ -474,6 +500,167 @@ export const loanController = {
         success: false,
         message: 'Failed to delete loan',
       });
+    }
+  },
+
+  // PATCH /api/loans/:id/assign-recovery (Admin only)
+  assignRecoveryStaff: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { recoveryStaffId } = req.body;
+
+      const loan = await Loan.findById(id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan not found' });
+      }
+
+      let staffName = 'Unassigned';
+      if (recoveryStaffId) {
+        const staff = await User.findById(recoveryStaffId);
+        if (!staff || staff.role !== 'recovery_staff') {
+          return res.status(400).json({ success: false, message: 'Invalid recovery staff member selected' });
+        }
+        loan.assignedRecoveryStaff = staff._id;
+        loan.recoveryAssignedAt = new Date();
+        loan.recoveryAssignedBy = req.user._id;
+        if (!loan.recoveryStatus || loan.recoveryStatus === 'none') {
+          loan.recoveryStatus = 'pending';
+        }
+        staffName = staff.name;
+
+        // Also sync to customer
+        if (loan.customer) {
+          await Customer.findByIdAndUpdate(loan.customer, { assignedRecoveryStaff: staff._id });
+        }
+      } else {
+        loan.assignedRecoveryStaff = null;
+        loan.recoveryAssignedAt = null;
+        loan.recoveryAssignedBy = null;
+      }
+
+      await loan.save();
+      await loan.populate('assignedRecoveryStaff', 'name email phone');
+      await loan.populate('recoveryAssignedBy', 'name email');
+
+      await recordActivity(
+        req,
+        `Admin assigned recovery staff ${staffName} to loan ${loan.loanId}`,
+        'Loan',
+        loan._id.toString(),
+        { recoveryStaffId, staffName }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Recovery staff assigned: ${staffName}`,
+        data: loan,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Failed to assign recovery staff' });
+    }
+  },
+
+  // POST /api/loans/:id/recovery-note
+  addRecoveryNote: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { note } = req.body;
+
+      if (!note || !note.trim()) {
+        return res.status(400).json({ success: false, message: 'Recovery note content is required' });
+      }
+
+      const loan = await Loan.findById(id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan not found' });
+      }
+
+      if (
+        req.user.role === 'recovery_staff' &&
+        (!loan.assignedRecoveryStaff || loan.assignedRecoveryStaff.toString() !== req.user._id.toString())
+      ) {
+        return res.status(403).json({ success: false, message: 'You are not assigned to this loan' });
+      }
+
+      loan.recoveryNotes.unshift({
+        note: note.trim(),
+        addedBy: req.user._id,
+        addedByName: req.user.name,
+        createdAt: new Date(),
+      });
+
+      await loan.save();
+
+      await recordActivity(
+        req,
+        `Recovery note added to loan ${loan.loanId}`,
+        'Loan',
+        loan._id.toString()
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Recovery note added successfully',
+        data: loan.recoveryNotes,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Failed to add recovery note' });
+    }
+  },
+
+  // PATCH /api/loans/:id/recovery-status
+  updateRecoveryStatus: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validStatuses = [
+        'none',
+        'pending',
+        'contacted',
+        'promise_to_pay',
+        'partially_paid',
+        'paid',
+        'overdue',
+        'unable_to_contact',
+        'follow_up_required',
+        'in_progress',
+        'recovered',
+        'escalated',
+        'legal_action',
+      ];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, message: 'Invalid recovery status value' });
+      }
+
+      const loan = await Loan.findById(id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan not found' });
+      }
+
+      if (
+        req.user.role === 'recovery_staff' &&
+        (!loan.assignedRecoveryStaff || loan.assignedRecoveryStaff.toString() !== req.user._id.toString())
+      ) {
+        return res.status(403).json({ success: false, message: 'You are not assigned to this loan' });
+      }
+
+      loan.recoveryStatus = status;
+      await loan.save();
+
+      await recordActivity(
+        req,
+        `Recovery status updated to ${status} on loan ${loan.loanId}`,
+        'Loan',
+        loan._id.toString(),
+        { recoveryStatus: status }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Recovery status updated to ${status}`,
+        data: loan,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: 'Failed to update recovery status' });
     }
   },
 };

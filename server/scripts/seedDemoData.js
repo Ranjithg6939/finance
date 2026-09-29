@@ -70,6 +70,23 @@ async function seedData() {
       console.log('[Seed] Inactive Staff created: inactive.staff@finance.com');
     }
 
+    // 2b. Create Demo Recovery Staff
+    let recoveryStaff = await User.findOne({ email: 'recovery@finance.com' });
+    if (!recoveryStaff) {
+      recoveryStaff = await User.create({
+        name: 'Ravi Shankar',
+        email: 'recovery@finance.com',
+        phone: '9876543299',
+        password: 'password123',
+        role: 'recovery_staff',
+        status: 'active',
+      });
+      console.log('[Seed] Recovery Staff created: recovery@finance.com');
+    } else {
+      recoveryStaff.role = 'recovery_staff';
+      await recoveryStaff.save();
+    }
+
     // 3. Customers
     const customerCount = await Customer.countDocuments();
     if (customerCount === 0) {
@@ -256,6 +273,26 @@ async function seedData() {
         details: { admin: admin.email, staffCount: 2 },
       });
       console.log('[Seed] ActivityLog created');
+    }
+
+    // 7. Ensure Recovery Staff has assigned loans and customers for demo
+    if (recoveryStaff) {
+      await Loan.updateMany(
+        { loanId: { $in: ['LN-1001', 'LN-1002'] } },
+        {
+          $set: {
+            assignedRecoveryStaff: recoveryStaff._id,
+            recoveryStatus: 'pending',
+          },
+        }
+      );
+      const assignedLoans = await Loan.find({ assignedRecoveryStaff: recoveryStaff._id });
+      const customerIds = assignedLoans.map((l) => l.customer);
+      await Customer.updateMany(
+        { _id: { $in: customerIds } },
+        { $set: { assignedRecoveryStaff: recoveryStaff._id } }
+      );
+      console.log('[Seed] Assigned demo loans & customers to Recovery Staff');
     }
 
     console.log('[Seed] Database seeding completed successfully!');
